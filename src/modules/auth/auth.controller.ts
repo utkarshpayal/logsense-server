@@ -1,0 +1,92 @@
+import { FastifyReply, FastifyRequest } from "fastify";
+import { authService } from "./auth.service";
+import { LoginDto, RegisterDto, RefreshDto } from "./auth.schema";
+
+class AuthController {
+  async register(
+    request: FastifyRequest<{
+      Body: RegisterDto;
+    }>,
+    reply: FastifyReply
+  ) {
+    const user = await authService.register(request.body);
+
+    const accessToken = request.server.jwt.sign(
+      { sub: user.id },
+      { expiresIn: "15m" }
+    );
+
+    const refreshToken = request.server.jwt.sign(
+      { sub: user.id },
+      { expiresIn: "7d" }
+    );
+
+    return reply.code(201).send({
+      success: true,
+      message: "User registered successfully",
+      data: {
+        user,
+        accessToken,
+        refreshToken,
+      },
+    });
+  }
+  async login(request: FastifyRequest<{
+    Body: LoginDto;
+  }>,
+    reply: FastifyReply) {
+    const user = await authService.login(request.body);
+
+    const accessToken = request.server.jwt.sign(
+      { sub: user.id },
+      { expiresIn: "15m" }
+    );
+
+    const refreshToken = request.server.jwt.sign(
+      { sub: user.id },
+      { expiresIn: "7d" }
+    );
+
+    return reply.code(201).send({
+      success: true,
+      message: "User logged in successfully",
+      data: {
+        user,
+        accessToken,
+        refreshToken,
+      },
+    });
+
+  }
+
+  async logout(request: FastifyRequest, reply: FastifyReply) {
+    return reply.code(200).send({
+      success: true,
+      message: "Logged out successfully",
+    });
+  }
+
+  async refresh(
+    request: FastifyRequest<{
+      Body: RefreshDto;
+    }>,
+    reply: FastifyReply
+  ) {
+    const tokens = await authService.refresh(request.server, request.body.refreshToken);
+    return reply.code(200).send({
+      success: true,
+      message: "Tokens refreshed successfully",
+      data: tokens,
+    });
+  }
+
+  async me(request: FastifyRequest, reply: FastifyReply) {
+    const user = await authService.me(request.user.sub);
+    return reply.code(200).send({
+      success: true,
+      data: user,
+    });
+  }
+}
+
+export const authController = new AuthController();
