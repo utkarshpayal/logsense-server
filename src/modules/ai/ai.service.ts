@@ -28,8 +28,9 @@ class AiService {
     const models = [
       "llama-3.3-70b-versatile",
       "llama-3.1-8b-instant",
-      "mixtral-8x7b-32768",
-      "gemma2-9b-it"
+      "qwen/qwen3.6-27b",
+      "meta-llama/llama-4-scout-17b-16e-instruct",
+      "openai/gpt-oss-120b"
     ];
 
     let lastError: any = null;
@@ -101,6 +102,71 @@ class AiService {
       }
       throw err;
     }
+  }
+
+  private minifyLogRows(rows: any[]): any[] {
+    // Limit to at most 30 rows to prevent exceeding token limits on the free tier LLM
+    const sliced = rows.slice(0, 30);
+    return sliced.map((row) => {
+      const minified: any = {
+        time: row.created_at,
+        level: row.level,
+        service: row.service,
+      };
+
+      if (row.message) {
+        minified.msg =
+          row.message.length > 150
+            ? row.message.slice(0, 150) + "..."
+            : row.message;
+      }
+
+      if (row.metadata && typeof row.metadata === "object") {
+        // Extract only essential fields to keep token footprint low
+        const essentialMeta: any = {};
+        const keysToKeep = [
+          "method",
+          "url",
+          "statusCode",
+          "duration",
+          "durationMs",
+          "error",
+          "exception",
+          "table",
+          "query",
+          "provider",
+          "userId",
+          "user_id",
+          "email",
+        ];
+
+        for (const k of keysToKeep) {
+          if (row.metadata[k] !== undefined) {
+            essentialMeta[k] = row.metadata[k];
+          }
+        }
+
+        // Handle nested responseBody user details if present
+        if (row.metadata.responseBody && typeof row.metadata.responseBody === "object") {
+          const rb = row.metadata.responseBody;
+          essentialMeta.response = {};
+          if (rb.userId) essentialMeta.response.userId = rb.userId;
+          if (rb.user && typeof rb.user === "object") {
+            essentialMeta.response.user = {
+              id: rb.user.id,
+              name: rb.user.name,
+              email: rb.user.email,
+            };
+          }
+        }
+
+        if (Object.keys(essentialMeta).length > 0) {
+          minified.meta = essentialMeta;
+        }
+      }
+
+      return minified;
+    });
   }
 
   async queryLogs(projectId: string, prompt: string): Promise<AiChatResult> {
@@ -291,8 +357,8 @@ To answer their question, we executed this SQL query:
 ${generatedSql}
 \`\`\`
 
-Which returned these results from the database:
-${JSON.stringify(queryRows, null, 2)}
+Which returned these results from the database (showing at most 30 entries):
+${JSON.stringify(this.minifyLogRows(queryRows), null, 2)}
 
 Strict formatting guidelines:
 1. **Direct Yes/No**: If the user is asking a yes/no question (e.g. "did more than 5 users face errors", "is payment-service down"), answer with a direct "Yes" or "No" first, followed by a very brief 1-sentence explanation of the numbers. Do not include verbose headers.

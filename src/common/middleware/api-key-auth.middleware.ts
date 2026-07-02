@@ -6,10 +6,17 @@ export async function authenticateApiKey(
   request: FastifyRequest<any>,
   reply: FastifyReply<any>
 ) {
-  const apiKeyHeader = request.headers["x-api-key"] as string | undefined;
+  let apiKeyHeader = request.headers["x-api-key"] as string | undefined;
 
   if (!apiKeyHeader) {
-    throw new UnauthorizedError("API key is required in 'x-api-key' header");
+    const authHeader = request.headers["authorization"] as string | undefined;
+    if (authHeader && authHeader.startsWith("Bearer ")) {
+      apiKeyHeader = authHeader.substring(7);
+    }
+  }
+
+  if (!apiKeyHeader) {
+    throw new UnauthorizedError("API key is required in 'x-api-key' or 'Authorization' header");
   }
 
   // Use reusable verification service

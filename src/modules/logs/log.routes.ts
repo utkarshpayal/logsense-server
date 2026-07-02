@@ -7,6 +7,7 @@ import { logController } from "./log.controller";
 
 import {
   createLogSchema,
+  ingestLogsSchema,
   getLogsQuerySchema,
   logParamsSchema,
   CreateLogDto,
@@ -19,13 +20,13 @@ export async function logRoutes(app: FastifyInstance) {
 
   // Ingest Log via API Key (POST /logs)
   router.post<{
-    Body: CreateLogDto;
+    Body: any;
   }>(
     "/",
     {
       preHandler: [authenticateApiKey],
       schema: {
-        body: createLogSchema,
+        body: ingestLogsSchema,
       },
     },
     logController.createLog

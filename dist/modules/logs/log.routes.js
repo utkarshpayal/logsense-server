@@ -11,7 +11,7 @@ async function logRoutes(app) {
     router.post("/", {
         preHandler: [api_key_auth_middleware_1.authenticateApiKey],
         schema: {
-            body: log_schema_1.createLogSchema,
+            body: log_schema_1.ingestLogsSchema,
         },
     }, log_controller_1.logController.createLog);
     // Retrieve Logs list via user JWT token (GET /logs)

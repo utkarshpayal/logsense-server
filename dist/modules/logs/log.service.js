@@ -18,6 +18,19 @@ class LogService {
         });
         return log;
     }
+    async createLogs(projectId, apiKeyId, logsData) {
+        const project = await project_repository_1.projectRepository.findById(projectId);
+        if (!project) {
+            throw new not_found_error_1.NotFoundError("Project not found");
+        }
+        const logsToCreate = logsData.map((log) => ({
+            ...log,
+            projectId,
+            apiKeyId,
+        }));
+        const logs = await log_repository_1.logRepository.createMany(logsToCreate);
+        return logs;
+    }
     // Helper method to retrieve authorized project IDs for a user
     async getScopedProjectIds(userId, projectIdFilter) {
         if (projectIdFilter) {

@@ -16,11 +16,12 @@ class LogRepository {
         metadata,
         trace_id,
         request_id,
-        hostname
+        hostname,
+        created_at
       )
       VALUES
       (
-        $1, $2, $3, $4, $5, $6, $7, $8, $9, $10
+        $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11
       )
       RETURNING *;
       `, [
@@ -34,8 +35,41 @@ class LogRepository {
             data.traceId || null,
             data.requestId || null,
             data.hostname || null,
+            data.createdAt || new Date(),
         ]);
         return result.rows[0];
+    }
+    async createMany(dataList) {
+        if (dataList.length === 0)
+            return [];
+        const valueRows = [];
+        const values = [];
+        let paramIndex = 1;
+        for (const data of dataList) {
+            valueRows.push(`($${paramIndex++}, $${paramIndex++}, $${paramIndex++}, $${paramIndex++}, $${paramIndex++}, $${paramIndex++}, $${paramIndex++}, $${paramIndex++}, $${paramIndex++}, $${paramIndex++}, $${paramIndex++})`);
+            values.push(data.projectId, data.apiKeyId, data.level, data.message, data.service || null, data.environment || null, data.metadata ? JSON.stringify(data.metadata) : null, data.traceId || null, data.requestId || null, data.hostname || null, data.createdAt || new Date());
+        }
+        const query = `
+      INSERT INTO logs
+      (
+        project_id,
+        api_key_id,
+        level,
+        message,
+        service,
+        environment,
+        metadata,
+        trace_id,
+        request_id,
+        hostname,
+        created_at
+      )
+      VALUES
+      ${valueRows.join(", ")}
+      RETURNING *;
+    `;
+        const result = await db_1.db.query(query, values);
+        return result.rows;
     }
     async findById(id) {
         const result = await db_1.db.query(`
@@ -68,8 +102,9 @@ class LogRepository {
             values.push(filters.environment);
         }
         if (filters.search) {
-            conditions.push(`message ILIKE $${paramIndex++}`);
+            conditions.push(`(message ILIKE $${paramIndex} OR trace_id ILIKE $${paramIndex} OR request_id ILIKE $${paramIndex} OR metadata::text ILIKE $${paramIndex})`);
             values.push(`%${filters.search}%`);
+            paramIndex++;
         }
         if (filters.startDate) {
             conditions.push(`created_at >= $${paramIndex++}`);
