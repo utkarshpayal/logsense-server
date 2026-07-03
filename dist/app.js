@@ -13,7 +13,7 @@ const auth_routes_1 = require("./modules/auth/auth.routes");
 const project_routes_1 = require("./modules/projects/project.routes");
 const api_key_routes_1 = require("./modules/apiKeys/api-key.routes");
 const log_routes_1 = require("./modules/logs/log.routes");
-const event_routes_1 = require("./modules/logs/event.routes");
+const events_routes_1 = require("./modules/logs/events.routes");
 const dashboard_routes_1 = require("./modules/dashboard/dashboard.routes");
 const ai_routes_1 = require("./modules/ai/ai.routes");
 const fastify_type_provider_zod_1 = require("fastify-type-provider-zod");
@@ -84,7 +84,7 @@ exports.app.register(api_key_routes_1.apiKeyRoutes, {
 exports.app.register(log_routes_1.logRoutes, {
     prefix: '/logs',
 });
-exports.app.register(event_routes_1.eventRoutes);
+exports.app.register(events_routes_1.eventRoutes);
 exports.app.register(dashboard_routes_1.dashboardRoutes, {
     prefix: '/dashboard',
 });
