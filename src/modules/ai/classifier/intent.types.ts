@@ -1,30 +1,15 @@
 export type Intent =
-  | "SLOW_SERVICES"
-  | "SLOW_ENDPOINTS"
-  | "TOP_ERRORS"
-  | "ERROR_COUNT"
-  | "REQUEST_COUNT"
-  | "TOP_ENDPOINTS"
-  | "TOP_USERS"
-  | "TOP_API_KEYS"
-  | "LATEST_ERRORS"
-  | "LATEST_WARNINGS"
-  | "REQUEST_TIMELINE"
-  | "SERVICE_HEALTH"
-  | "DATABASE_QUERIES"
-  | "REDIS_OPERATIONS"
-  | "TRACE_LOOKUP"
-  | "REQUEST_LOOKUP"
-  | "USER_ACTIVITY"
-  | "DEPLOYMENT_ISSUES"
-  | "HTTP_STATUS"
-  | "LATENCY"
-  | "MOST_ACTIVE_SERVICE"
-  | "MOST_ACTIVE_HOST"
-  | "LOG_SEARCH"
-  | "PROJECT_INFO"
-  | "API_KEY_INFO"
-  | "GENERAL_SQL"
+  | "BUSINESS"
+  | "LOGS"
+  | "METRICS"
+  | "DASHBOARD"
+  | "TRACE"
+  | "ISSUE"
+  | "USER"
+  | "PROJECT"
+  | "API_KEY"
+  | "DOCUMENTATION"
+  | "GENERAL_KNOWLEDGE"
   | "UNKNOWN";
 
 export interface ExtractedEntities {
@@ -47,7 +32,7 @@ export interface ExtractedEntities {
 }
 
 export interface ClassificationResult {
-  intent: Intent;
+  intents: Intent[];
   /** 0.0 – 1.0  */
   confidence: number;
   extractedEntities: ExtractedEntities;

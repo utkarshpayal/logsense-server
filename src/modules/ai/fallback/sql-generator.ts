@@ -1,7 +1,7 @@
 import { db } from "../../../config/db";
 import { groqClient } from "../groq.client";
 import { sqlValidator } from "./sql-validator";
-import { ToolResult } from "../tools/base.tool";
+import { ToolResult } from "../tools/interfaces";
 
 const SCHEMA_CONTEXT = `
 ## Database Schema (read-only)
@@ -127,7 +127,12 @@ export class FallbackSqlGenerator {
       }
     }
 
-    return { sql, rows, explanation };
+    return { 
+      toolName: "FallbackSqlGenerator",
+      success: true,
+      data: rows, 
+      explanation: `${explanation} (SQL: ${sql})` 
+    };
   }
 }
 
