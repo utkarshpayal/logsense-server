@@ -11,561 +11,416 @@ export interface AiChatResult {
   errorType?: "CONFIG_ERROR" | "SECURITY_ERROR" | "DB_ERROR" | "LLM_ERROR";
 }
 
-// ---------------------------------------------------------------------------
-// Intent types – drive which SQL schema context we inject
-// ---------------------------------------------------------------------------
-type QueryIntent =
-  | "platform_business"   // users on platform, registrations, project counts …
-  | "user_activity"       // what did a specific user do?
-  | "technical_logs"      // errors, latency, services, stack-traces …
-  | "general";            // everything else, try full schema
+type QueryIntent = "platform_business" | "user_activity" | "technical_logs" | "general";
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Deterministically extract ground-truth facts from raw DB rows.
+// These are injected into the summarizer as hard constraints so the LLM
+// can NEVER contradict actual data.
+// ─────────────────────────────────────────────────────────────────────────────
+function extractGroundTruth(rows: any[]): string {
+  if (rows.length === 0) {
+    return "GROUND TRUTH: The database returned 0 rows — nothing was found.";
+  }
+
+  const lines: string[] = [`GROUND TRUTH: The database returned ${rows.length} row(s).`];
+  const first = rows[0];
+
+  // Pull out any numeric / count-like columns from the first row
+  for (const [col, val] of Object.entries(first)) {
+    const num = Number(val);
+    if (!isNaN(num) && val !== null && val !== "") {
+      lines.push(`GROUND TRUTH: column "${col}" = ${num}`);
+      if (num > 0) {
+        lines.push(
+          `DERIVED FACT: Because "${col}" = ${num} (greater than 0), ` +
+            `any "is there any / are there any / how many" question MUST be answered YES / ${num}.`
+        );
+      } else {
+        lines.push(
+          `DERIVED FACT: Because "${col}" = 0, the answer is NO / zero / none.`
+        );
+      }
+    }
+  }
+
+  return lines.join("\n");
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Simple heuristic: did the LLM answer contradict a non-zero count result?
+// ─────────────────────────────────────────────────────────────────────────────
+function answerContradictsData(answer: string, rows: any[]): boolean {
+  if (rows.length === 0) return false;
+  const first = rows[0];
+  for (const val of Object.values(first)) {
+    const num = Number(val);
+    if (!isNaN(num) && num > 0) {
+      const negativePattern = /^(no[,.\s]|no\b|there are no|none|0 user|no user|not found)/i;
+      if (negativePattern.test(answer.trim())) {
+        console.warn("⚠️  Answer contradicts data — will regenerate summary.");
+        return true;
+      }
+    }
+  }
+  return false;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Minify log rows for the LLM token budget
+// ─────────────────────────────────────────────────────────────────────────────
+function minifyRows(rows: any[]): any[] {
+  return rows.slice(0, 30).map((row) => {
+    // Non-log rows (e.g. users / projects table results) — pass through safely
+    if (!row.level && !row.message) {
+      const safe: any = {};
+      for (const [k, v] of Object.entries(row)) {
+        if (k !== "password_hash" && k !== "key_hash") safe[k] = v;
+      }
+      return safe;
+    }
+
+    // Log rows — minify
+    const m: any = {
+      time: row.created_at,
+      level: row.level,
+      service: row.service,
+      msg: row.message ? String(row.message).slice(0, 150) : undefined,
+    };
+
+    if (row.metadata && typeof row.metadata === "object") {
+      const keep = ["method", "url", "statusCode", "duration", "durationMs",
+        "error", "exception", "table", "query", "provider", "userId", "user_id", "email"];
+      const meta: any = {};
+      for (const k of keep) {
+        if (row.metadata[k] !== undefined) meta[k] = row.metadata[k];
+      }
+      const rb = row.metadata.responseBody;
+      if (rb && typeof rb === "object") {
+        meta.response = {};
+        if (rb.userId) meta.response.userId = rb.userId;
+        if (rb.user) meta.response.user = { id: rb.user.id, name: rb.user.name, email: rb.user.email };
+      }
+      if (Object.keys(meta).length) m.meta = meta;
+    }
+    return m;
+  });
+}
 
 class AiService {
   private getClient(): Groq | null {
-    const apiKey = process.env.GROQ_API_KEY;
-    if (!apiKey) {
-      return null;
-    }
-    return new Groq({ apiKey });
+    const key = process.env.GROQ_API_KEY;
+    return key ? new Groq({ apiKey: key }) : null;
   }
 
-  // -------------------------------------------------------------------------
-  // LLM call with model fallback chain
-  // -------------------------------------------------------------------------
-  private async generateWithFallback(
+  // ── Model fallback chain ────────────────────────────────────────────────
+  private async generate(
     groq: Groq,
-    contents: string[],
-    isJson: boolean = false
-  ): Promise<{ text: string; modelUsed: string }> {
+    prompt: string,
+    isJson = false
+  ): Promise<{ text: string; model: string }> {
     const models = [
       "llama-3.3-70b-versatile",
       "llama-3.1-8b-instant",
       "qwen/qwen3.6-27b",
       "meta-llama/llama-4-scout-17b-16e-instruct",
-      "openai/gpt-oss-120b",
     ];
-
-    let lastError: any = null;
-    const messageContent = contents.join("\n");
-
-    for (const modelName of models) {
+    let last: any;
+    for (const model of models) {
       try {
-        const options: any = {
-          messages: [{ role: "user", content: messageContent }],
-          model: modelName,
-        };
-
-        if (isJson) {
-          options.response_format = { type: "json_object" };
-        }
-
-        const chatCompletion = await groq.chat.completions.create(options);
-        const text = chatCompletion.choices[0]?.message?.content || "";
-        return { text, modelUsed: modelName };
-      } catch (err: any) {
-        console.warn(
-          `⚠️ Model ${modelName} failed. Error: ${err.message || err}. Trying next model...`
-        );
-        lastError = err;
+        const opts: any = { messages: [{ role: "user", content: prompt }], model };
+        if (isJson) opts.response_format = { type: "json_object" };
+        const res = await groq.chat.completions.create(opts);
+        return { text: res.choices[0]?.message?.content || "", model };
+      } catch (e: any) {
+        console.warn(`⚠️ ${model} failed: ${e.message}`);
+        last = e;
       }
     }
-
-    throw lastError || new Error("All fallback models failed.");
+    throw last || new Error("All models failed");
   }
 
-  // -------------------------------------------------------------------------
-  // JSON response parsing (handles markdown fences, unescaped newlines, etc.)
-  // -------------------------------------------------------------------------
-  private parseJsonResponse(text: string): any {
-    let clean = text.trim();
-    if (clean.startsWith("```")) {
-      const firstNewline = clean.indexOf("\n");
-      if (firstNewline !== -1) clean = clean.slice(firstNewline + 1);
-      if (clean.endsWith("```")) clean = clean.slice(0, -3);
-      clean = clean.trim();
+  // ── JSON parse with fallbacks ───────────────────────────────────────────
+  private parseJson(text: string): any {
+    let s = text.trim();
+    if (s.startsWith("```")) {
+      const nl = s.indexOf("\n");
+      if (nl !== -1) s = s.slice(nl + 1);
+      if (s.endsWith("```")) s = s.slice(0, -3);
+      s = s.trim();
     }
-
+    try { return JSON.parse(s); } catch { /* fall through */ }
     try {
-      return JSON.parse(clean);
-    } catch {
-      try {
-        const fixedClean = clean.replace(/"([^"\\]*(?:\\.[^"\\]*)*)"/g, (match, p1) => {
-          return '"' + p1.replace(/\n/g, "\\n").replace(/\r/g, "\\r") + '"';
-        });
-        return JSON.parse(fixedClean);
-      } catch {
-        // fall through to brace-match regex
-      }
-
-      const jsonMatch = clean.match(/\{[\s\S]*\}/);
-      if (jsonMatch) {
-        try {
-          return JSON.parse(jsonMatch[0]);
-        } catch {
-          // fall through
-        }
-      }
-      throw new Error(`Could not parse LLM JSON response: ${clean.slice(0, 200)}`);
-    }
+      const fixed = s.replace(/"([^"\\]*(?:\\.[^"\\]*)*)"/g, (_, p) =>
+        '"' + p.replace(/\n/g, "\\n").replace(/\r/g, "\\r") + '"'
+      );
+      return JSON.parse(fixed);
+    } catch { /* fall through */ }
+    const m = s.match(/\{[\s\S]*\}/);
+    if (m) { try { return JSON.parse(m[0]); } catch { /* fall through */ } }
+    throw new Error(`Cannot parse LLM JSON: ${s.slice(0, 200)}`);
   }
 
-  // -------------------------------------------------------------------------
-  // Minify log rows to stay within LLM token budget
-  // -------------------------------------------------------------------------
-  private minifyLogRows(rows: any[]): any[] {
-    return rows.slice(0, 30).map((row) => {
-      const minified: any = {
-        time: row.created_at,
-        level: row.level,
-        service: row.service,
-      };
+  // ── Step 1: Classify intent ─────────────────────────────────────────────
+  private async classifyIntent(groq: Groq, prompt: string): Promise<QueryIntent> {
+    const p = `Classify this developer-observability question into ONE intent. Return only JSON: {"intent":"<value>"}
 
-      if (row.message) {
-        minified.msg =
-          row.message.length > 150 ? row.message.slice(0, 150) + "..." : row.message;
-      }
+Intents:
+- "platform_business" → total users on platform, registrations today, project/API-key counts, business KPIs
+- "user_activity"     → what a specific (named) user did, their timeline, their requests
+- "technical_logs"    → errors, latency, service health, exceptions, stack traces, HTTP codes
+- "general"           → anything else
 
-      if (row.metadata && typeof row.metadata === "object") {
-        const essentialMeta: any = {};
-        const keysToKeep = [
-          "method",
-          "url",
-          "statusCode",
-          "duration",
-          "durationMs",
-          "error",
-          "exception",
-          "table",
-          "query",
-          "provider",
-          "userId",
-          "user_id",
-          "email",
-        ];
-
-        for (const k of keysToKeep) {
-          if (row.metadata[k] !== undefined) essentialMeta[k] = row.metadata[k];
-        }
-
-        if (
-          row.metadata.responseBody &&
-          typeof row.metadata.responseBody === "object"
-        ) {
-          const rb = row.metadata.responseBody;
-          essentialMeta.response = {};
-          if (rb.userId) essentialMeta.response.userId = rb.userId;
-          if (rb.user && typeof rb.user === "object") {
-            essentialMeta.response.user = {
-              id: rb.user.id,
-              name: rb.user.name,
-              email: rb.user.email,
-            };
-          }
-        }
-
-        if (Object.keys(essentialMeta).length > 0) minified.meta = essentialMeta;
-      }
-
-      // Pass through plain columns when row is not a log (e.g. users query)
-      if (row.id && !row.level) {
-        const plain: any = {};
-        for (const [k, v] of Object.entries(row)) {
-          if (k !== "password_hash" && k !== "key_hash" && v !== null) {
-            plain[k] = v;
-          }
-        }
-        return plain;
-      }
-
-      return minified;
-    });
-  }
-
-  // -------------------------------------------------------------------------
-  // Classify the user's intent so we can pick the right schema context
-  // -------------------------------------------------------------------------
-  private async classifyIntent(
-    groq: Groq,
-    prompt: string
-  ): Promise<QueryIntent> {
-    const classifyPrompt = `You are an intent classifier for a developer observability platform called LogSense.
-Classify the user question below into ONE of these intents:
-
-1. "platform_business" — asking about the platform itself: total users registered, number of projects, new sign-ups, API-key counts, which users joined, business KPIs.
-2. "user_activity"     — asking what a specific (named or identified) user did: their actions, requests, errors, timeline.
-3. "technical_logs"   — asking about application logs: errors, latency, service health, stack traces, HTTP status codes, slow queries, exceptions.
-4. "general"          — anything else or ambiguous.
-
-Return ONLY a JSON object like: {"intent": "platform_business"}
-
-User question: "${prompt}"`;
-
+Question: "${prompt}"`;
     try {
-      const { text } = await this.generateWithFallback(groq, [classifyPrompt], true);
-      const parsed = this.parseJsonResponse(text);
+      const { text } = await this.generate(groq, p, true);
+      const parsed = this.parseJson(text);
       const intent = parsed?.intent as QueryIntent;
-      if (
-        ["platform_business", "user_activity", "technical_logs", "general"].includes(
-          intent
-        )
-      ) {
-        console.log(`🎯 AI intent classified as: ${intent}`);
+      if (["platform_business", "user_activity", "technical_logs", "general"].includes(intent)) {
+        console.log(`🎯 Intent: ${intent}`);
         return intent;
       }
-    } catch (err) {
-      console.warn("⚠️ Intent classification failed, defaulting to general:", err);
+    } catch (e) {
+      console.warn("⚠️ Intent classification failed:", e);
     }
     return "general";
   }
 
-  // -------------------------------------------------------------------------
-  // Build the SQL-translation system prompt based on intent
-  // -------------------------------------------------------------------------
-  private buildSqlTranslationPrompt(projectId: string, intent: QueryIntent): string {
-    // ── Shared schema description ──────────────────────────────────────────
-    const fullSchema = `
-## Full Database Schema
+  // ── Step 2: Build SQL-translation prompt ────────────────────────────────
+  private buildSqlPrompt(projectId: string, intent: QueryIntent): string {
+    const schema = `
+## Database Tables
 
-### Table: users
-| Column        | Type         | Notes                            |
-|---------------|--------------|----------------------------------|
-| id            | UUID         | Primary key                      |
-| name          | VARCHAR(100) | Full name                        |
-| email         | VARCHAR(255) | Unique                           |
-| is_verified   | BOOLEAN      |                                  |
-| created_at    | TIMESTAMPTZ  | When the user registered         |
-| updated_at    | TIMESTAMPTZ  |                                  |
+### users  (platform-wide — no project_id filter needed)
+id UUID, name VARCHAR, email VARCHAR, is_verified BOOLEAN, created_at TIMESTAMPTZ, updated_at TIMESTAMPTZ
 
-### Table: projects
-| Column      | Type         | Notes                                          |
-|-------------|--------------|------------------------------------------------|
-| id          | UUID         | Primary key                                    |
-| owner_id    | UUID         | FK → users.id                                  |
-| name        | VARCHAR(100) |                                                |
-| slug        | VARCHAR(100) | Unique URL-safe identifier                     |
-| description | TEXT         |                                                |
-| is_active   | BOOLEAN      |                                                |
-| created_at  | TIMESTAMPTZ  |                                                |
-| updated_at  | TIMESTAMPTZ  |                                                |
+### projects  (platform-wide)
+id UUID, owner_id UUID→users.id, name VARCHAR, slug VARCHAR, is_active BOOLEAN, created_at TIMESTAMPTZ
 
-### Table: api_keys
-| Column       | Type         | Notes                              |
-|--------------|--------------|------------------------------------|
-| id           | UUID         | Primary key                        |
-| project_id   | UUID         | FK → projects.id                   |
-| name         | VARCHAR(100) |                                    |
-| prefix       | VARCHAR(20)  | First chars of key (safe to show)  |
-| is_active    | BOOLEAN      |                                    |
-| last_used_at | TIMESTAMPTZ  |                                    |
-| expires_at   | TIMESTAMPTZ  |                                    |
-| environment  | VARCHAR(20)  | 'production' | 'development'        |
-| created_at   | TIMESTAMPTZ  |                                    |
+### api_keys  (platform-wide)
+id UUID, project_id UUID→projects.id, name VARCHAR, prefix VARCHAR, is_active BOOLEAN,
+last_used_at TIMESTAMPTZ, expires_at TIMESTAMPTZ, environment VARCHAR, created_at TIMESTAMPTZ
 
-### Table: logs
-| Column      | Type        | Notes                                                       |
-|-------------|-------------|-------------------------------------------------------------|
-| id          | UUID        |                                                             |
-| project_id  | UUID        | MUST ALWAYS be filtered: logs.project_id = '${projectId}'  |
-| api_key_id  | UUID        |                                                             |
-| level       | VARCHAR     | 'debug' | 'info' | 'warn' | 'error'                        |
-| message     | TEXT        |                                                             |
-| service     | VARCHAR     | e.g. 'auth-service', 'payment-service'                      |
-| environment | VARCHAR     | e.g. 'production', 'development'                            |
-| metadata    | JSONB       | Structured request/response data (see notes below)          |
-| trace_id    | VARCHAR     |                                                             |
-| request_id  | VARCHAR     |                                                             |
-| hostname    | VARCHAR     |                                                             |
-| created_at  | TIMESTAMPTZ |                                                             |
+### logs  ← ALWAYS filter: logs.project_id = '${projectId}'
+id UUID, project_id UUID, api_key_id UUID, level VARCHAR('debug'|'info'|'warn'|'error'),
+message TEXT, service VARCHAR, environment VARCHAR, metadata JSONB, trace_id VARCHAR,
+request_id VARCHAR, hostname VARCHAR, created_at TIMESTAMPTZ
 
-#### JSONB metadata notes for logs:
-- HTTP logs: metadata->>'method', metadata->>'url', metadata->>'statusCode', metadata->>'latency_ms'
-- User identity: metadata->>'userId', metadata->>'user_id', metadata->>'email'
-- Response payload: metadata->'responseBody'->>'userId' or metadata->'responseBody'->'user'->>'id' / 'name' / 'email'
-- DB queries: metadata->>'table', metadata->>'query'
-- Errors: metadata->>'error', metadata->>'exception'
+#### metadata JSONB structure (logs):
+- HTTP: ->>'method', ->>'url', ->>'statusCode', ->>'latency_ms'
+- User identity in logs: ->>'userId', ->>'user_id', ->>'email'
+  OR nested: ->'responseBody'->>'userId'  |  ->'responseBody'->'user'->>'id' / 'name' / 'email'
+- DB ops: ->>'table', ->>'query'
+- Errors: ->>'error', ->>'exception'
 
-#### CRITICAL JSONB operator rules:
-- Use '->' for intermediate JSONB traversal, '->>' only for the final text leaf.
-- NEVER chain '->>' twice: ❌ metadata->>'responseBody'->>'userId'  ✅ metadata->'responseBody'->>'userId'
-- Never use ILIKE/LIKE directly on JSONB; cast to text first: metadata::text ILIKE '%term%'
+#### CRITICAL JSONB rules:
+- Use '->' for intermediate levels, '->>' ONLY for the final leaf (returns text).
+- NEVER: metadata->>'responseBody'->>'userId'  ✅ DO: metadata->'responseBody'->>'userId'
+- NEVER use ILIKE on raw JSONB — cast first: metadata::text ILIKE '%term%'
 `;
 
-    // ── Intent-specific guidance ───────────────────────────────────────────
-    const intentGuidance: Record<QueryIntent, string> = {
+    const intentGuide: Record<QueryIntent, string> = {
       platform_business: `
-## Intent: Platform Business Metrics
-You may query users, projects, api_keys, AND logs tables.
-- "how many users" → COUNT(*) FROM users (or JOIN with projects if scoped to a project owner)
-- "users today / this week" → users.created_at >= NOW() - INTERVAL '1 day'
-- "which users are on the platform" → SELECT id, name, email, created_at FROM users ORDER BY created_at DESC
-- "how many projects" → COUNT(*) FROM projects (optionally WHERE owner_id = any user)
-- Do NOT restrict to project_id unless the question is specifically about logs data.
+## This is a PLATFORM / BUSINESS question.
+- "new users today / this week" → SELECT … FROM users WHERE created_at >= NOW() - INTERVAL '…'
+- "users in this project" → users who sent logs to this project:
+    SELECT COUNT(DISTINCT COALESCE(metadata->>'userId', metadata->>'user_id',
+      metadata->'responseBody'->>'userId', metadata->'responseBody'->'user'->>'id')) AS user_count
+    FROM logs WHERE project_id = '${projectId}' AND created_at >= NOW() - INTERVAL '1 day'
+    AND COALESCE(metadata->>'userId', metadata->>'user_id',
+      metadata->'responseBody'->>'userId', metadata->'responseBody'->'user'->>'id') IS NOT NULL
+- "how many projects / API keys" → query projects / api_keys tables directly.
+- When the question says "in this project" but asks about users → query LOGS for that project_id, not the raw users table.
 `,
       user_activity: `
-## Intent: User Activity
-You will primarily query the logs table, filtered by project_id = '${projectId}'.
-- Identify the user from metadata->>'userId', metadata->>'email', metadata->'responseBody'->'user'->>'id', or name.
-- Use ILIKE fuzzy search when matching by name/email.
-- Order chronologically (ORDER BY created_at ASC) to show a timeline.
-- If the user is identified by name, try: metadata::text ILIKE '%name%' OR metadata->'responseBody'->'user'->>'name' ILIKE '%name%'
+## This is a USER ACTIVITY question — query logs scoped to project_id = '${projectId}'.
+- Find user by: metadata->>'userId' ILIKE '%id%' OR metadata::text ILIKE '%name_or_email%'
+- Order chronologically (ORDER BY created_at ASC) for a step-by-step timeline.
 `,
       technical_logs: `
-## Intent: Technical Logs / Observability
-Query the logs table, always filtered by project_id = '${projectId}'.
+## This is a TECHNICAL / OBSERVABILITY question — query logs scoped to project_id = '${projectId}'.
 - Errors: level = 'error'
-- Slow requests: (metadata->>'latency_ms')::int > threshold
-- Service health: GROUP BY service, COUNT errors
+- Slow: (metadata->>'latency_ms')::int > threshold
 - Exceptions: metadata->>'exception' IS NOT NULL
 `,
       general: `
-## Intent: General / Mixed
-Use whichever tables are appropriate. If asking about platform-level counts (users, projects), query those tables directly. If asking about log events, filter logs by project_id = '${projectId}'.
+## General question — use whichever tables fit. Logs MUST be scoped to project_id = '${projectId}'.
 `,
     };
 
     return `You are a PostgreSQL expert for the LogSense observability platform.
 Translate the natural language question into a safe, read-only SELECT query.
 
-${fullSchema}
-
-${intentGuidance[intent]}
-
-## URL / Domain Mappings for logs
-- "agencies" / "publishers" / "author list" → metadata->>'url' ILIKE '%agencies%'
-- "file upload" / "media upload" → metadata->>'url' ILIKE '%upload%'
-- User signup logs: metadata->'responseBody'->'user'->>'name' contains the user name, '->>'id' contains their ID.
-- Upload logs: metadata->'responseBody'->>'userId' is the uploader's ID.
-- Correlate uploader name: JOIN upload logs with signup logs on the user ID using a CTE.
-
-## Counting unique users from logs
-- Do NOT use metadata->>'userId' at root level for counting (often null).
-- Use COALESCE(metadata->'responseBody'->'user'->>'id', metadata->'responseBody'->>'userId') for log-based user counts.
-- For platform-level user counts: COUNT(*) FROM users.
+${schema}
+${intentGuide[intent]}
 
 ## Absolute rules
-1. Only generate SELECT queries. No INSERT, UPDATE, DELETE, DROP, ALTER, TRUNCATE, CREATE, GRANT, REVOKE.
-2. If querying logs, ALWAYS include WHERE logs.project_id = '${projectId}'.
-3. Queries on users/projects/api_keys do NOT need project_id filtering (they are platform-wide tables).
-4. LIMIT results to 50 rows maximum.
-5. All date intervals relative to NOW(). "today" = created_at >= NOW() - INTERVAL '1 day'.
-6. Return ONLY this JSON structure:
+1. Only SELECT — no INSERT / UPDATE / DELETE / DROP / ALTER / TRUNCATE / CREATE / GRANT / REVOKE.
+2. Querying logs → MUST include WHERE logs.project_id = '${projectId}'.
+3. Querying users / projects / api_keys → no project_id filter needed (platform-wide).
+4. LIMIT 50 rows max.
+5. Dates relative to NOW(). "today" = created_at >= NOW() - INTERVAL '1 day'.
+6. Prefer ILIKE fuzzy matching over strict equals for names/emails/URLs.
+
+## Output — return ONLY this JSON:
 {
   "sql": "SELECT ...",
-  "explanation": "Brief plain-English explanation of what the query does",
-  "fallback_keywords": ["list", "of", "search", "terms", "if", "0", "results"]
+  "explanation": "plain English description of what the query does",
+  "fallback_keywords": ["terms to use in broad text search if 0 rows returned"]
 }`;
   }
 
-  // -------------------------------------------------------------------------
-  // Build the summarization prompt
-  // -------------------------------------------------------------------------
-  private buildSummarizePrompt(
+  // ── Step 3: Build summarizer prompt (with ground truth injected) ─────────
+  private buildSummaryPrompt(
     prompt: string,
-    generatedSql: string,
+    sql: string,
     rows: any[],
-    intent: QueryIntent
+    intent: QueryIntent,
+    groundTruth: string
   ): string {
     const intentHint: Record<QueryIntent, string> = {
-      platform_business:
-        "This is a business/platform question. Give crisp metrics, counts, and lists. Use bullet points or short sentences.",
-      user_activity:
-        "This is a user-activity question. Present the timeline step-by-step, ordered chronologically.",
-      technical_logs:
-        "This is a technical/observability question. Be precise: include counts, service names, error messages, and latencies where relevant.",
-      general:
-        "Answer directly and concisely.",
+      platform_business: "Give crisp numbers. Bold the key metric. Use bullet points for lists.",
+      user_activity: "Show a numbered step-by-step chronological timeline.",
+      technical_logs: "Be precise: include counts, service names, error messages, latencies.",
+      general: "Answer directly and concisely.",
     };
 
-    return `You are LogSense Observability AI – a friendly, precise assistant for developers and product teams.
+    return `You are LogSense Observability AI. Answer the user's question using ONLY the data below.
 
-The user asked: "${prompt}"
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+VERIFIED GROUND TRUTH (from the database — you MUST NOT contradict these facts):
+${groundTruth}
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-To answer, we ran this SQL query:
+User question: "${prompt}"
+
+SQL executed:
 \`\`\`sql
-${generatedSql}
+${sql}
 \`\`\`
 
-Results from the database (up to 30 rows shown):
-${JSON.stringify(this.minifyLogRows(rows), null, 2)}
+Raw results (up to 30 rows):
+${JSON.stringify(minifyRows(rows), null, 2)}
 
-Intent hint: ${intentHint[intent]}
+Intent style: ${intentHint[intent]}
 
-Formatting rules:
-1. **Direct Yes/No first**: For yes/no questions, lead with "Yes" or "No", then a 1-sentence explanation.
-2. **Lists**: For list questions, show a clean bulleted list. No chatty introductions.
-3. **Counts / metrics**: State the number prominently (e.g. "**47 users** registered today").
-4. **Timeline**: For user-activity questions, use a numbered step-by-step list ordered by time.
-5. **Zero results**: If there are no rows, say so clearly and suggest why (e.g. no matching logs in this time range).
-6. **No preamble**: Never start with "Sure, here is …" or similar fluff. Get straight to the answer.
-7. **Sensitive data**: Never echo back password hashes or key_hash values.`;
+Formatting rules — follow strictly:
+1. Your answer MUST be consistent with the GROUND TRUTH above. If count > 0, you MUST say Yes/there are N. If count = 0, say No/none.
+2. Lead with the direct answer. If yes/no question — start with "Yes" or "No".
+3. Bold the key number: e.g. "**2 new users** were found today."
+4. For user activity: numbered chronological steps.
+5. For lists: clean bulleted list, no intro fluff.
+6. Never start with "Sure," or "Of course," or similar preamble.
+7. Never echo password_hash or key_hash values.`;
   }
 
-  // -------------------------------------------------------------------------
-  // Main entry point
-  // -------------------------------------------------------------------------
+  // ── Main entry point ────────────────────────────────────────────────────
   async queryLogs(projectId: string, prompt: string): Promise<AiChatResult> {
     const groq = this.getClient();
     if (!groq) {
       return {
         success: false,
         errorType: "CONFIG_ERROR",
-        message:
-          "Groq API key is not configured. Please add GROQ_API_KEY to your logsense-server .env file to enable AI Log Querying.",
+        message: "GROQ_API_KEY is not configured on the server.",
       };
     }
 
-    // ── Step 1: Classify intent ──────────────────────────────────────────
+    // 1. Classify intent
     const intent = await this.classifyIntent(groq, prompt);
 
-    // ── Step 2: Translate natural language → SQL ─────────────────────────
-    const systemPrompt = this.buildSqlTranslationPrompt(projectId, intent);
-
-    let generatedSql = "";
+    // 2. Translate to SQL
+    const sqlPrompt = this.buildSqlPrompt(projectId, intent);
+    let sql = "";
     let explanation = "";
     let parsed: any = {};
 
     try {
-      const { text: responseText, modelUsed } = await this.generateWithFallback(
+      const { text, model } = await this.generate(
         groq,
-        [systemPrompt, `User question: "${prompt}"`],
+        `${sqlPrompt}\n\nUser question: "${prompt}"`,
         true
       );
-      console.log(`🤖 SQL generation successful using model: ${modelUsed}`);
-
-      parsed = this.parseJsonResponse(responseText);
-      generatedSql = parsed.sql?.trim() || "";
+      console.log(`🤖 SQL generated by ${model}`);
+      parsed = this.parseJson(text);
+      sql = parsed.sql?.trim() || "";
       explanation = parsed.explanation || "";
-
-      if (!generatedSql) {
-        return {
-          success: false,
-          errorType: "LLM_ERROR",
-          message: "Failed to generate a valid SQL query from your prompt.",
-        };
+      if (!sql) {
+        return { success: false, errorType: "LLM_ERROR", message: "Failed to generate SQL from your prompt." };
       }
-    } catch (error: any) {
-      console.error("❌ AI SQL generation error:", error);
+    } catch (e: any) {
+      return { success: false, errorType: "LLM_ERROR", message: `SQL generation failed: ${e.message}` };
+    }
+
+    // 3. Security validation
+    const sqlLower = sql.toLowerCase();
+    const isSelect = /^\s*select\b/i.test(sql);
+    const hasWriteOp = /\b(insert|update|delete|drop|alter|truncate|create|grant|revoke)\b/i.test(sqlLower);
+    const touchesLogs = sqlLower.includes("from logs") || sqlLower.includes("join logs");
+    const hasScopeFilter = !touchesLogs ||
+      (sqlLower.includes("project_id") && sqlLower.includes(projectId.toLowerCase()));
+
+    if (!isSelect || hasWriteOp || !hasScopeFilter) {
       return {
-        success: false,
-        errorType: "LLM_ERROR",
-        message: `Failed to translate your request into SQL: ${error.message}`,
+        success: false, errorType: "SECURITY_ERROR",
+        message: "Generated query failed security checks (must be read-only and project-scoped for log queries).",
+        sql, explanation,
       };
     }
 
-    // ── Step 3: Security validation ──────────────────────────────────────
-    const cleanSql = generatedSql.toLowerCase();
-
-    const isReadOnly =
-      /^\s*select\b/i.test(generatedSql) &&
-      !/\b(insert|update|delete|drop|alter|truncate|create|grant|revoke)\b/i.test(
-        cleanSql
-      );
-
-    // For logs queries, project_id scoping is mandatory.
-    // For platform/business queries (users/projects tables), we skip the project_id check.
-    const queriesLogTable = cleanSql.includes("from logs") || cleanSql.includes("join logs");
-    const isScoped =
-      !queriesLogTable ||
-      (cleanSql.includes("project_id") && cleanSql.includes(projectId.toLowerCase()));
-
-    if (!isReadOnly || !isScoped) {
-      return {
-        success: false,
-        errorType: "SECURITY_ERROR",
-        message: "Generated query failed security checks (must be read-only and project-scoped).",
-        sql: generatedSql,
-        explanation,
-      };
-    }
-
-    // ── Step 4: Execute SQL ───────────────────────────────────────────────
-    let queryRows: any[] = [];
+    // 4. Execute SQL
+    let rows: any[] = [];
     try {
-      const result = await db.query(generatedSql);
-      queryRows = result.rows;
-    } catch (error: any) {
-      console.error("❌ SQL execution error:", error);
-      return {
-        success: false,
-        errorType: "DB_ERROR",
-        message: `Database query execution failed: ${error.message}`,
-        sql: generatedSql,
-        explanation,
-      };
+      const result = await db.query(sql);
+      rows = result.rows;
+    } catch (e: any) {
+      console.error("❌ SQL execution error:", e);
+      return { success: false, errorType: "DB_ERROR", message: `Query failed: ${e.message}`, sql, explanation };
     }
 
-    // ── Step 5: Fuzzy fallback if 0 rows returned ─────────────────────────
-    if (
-      queryRows.length === 0 &&
-      queriesLogTable &&
-      parsed.fallback_keywords &&
-      Array.isArray(parsed.fallback_keywords) &&
-      parsed.fallback_keywords.length > 0
-    ) {
-      const validKeywords = parsed.fallback_keywords.filter(
-        (kw: any) => typeof kw === "string" && kw.trim().length > 1
-      );
-
-      if (validKeywords.length > 0) {
-        console.log(
-          `⚠️ Primary query returned 0 rows. Fuzzy fallback on keywords:`,
-          validKeywords
-        );
-        const keywordConditions = validKeywords
-          .map((kw: string) => {
-            const escaped = kw.replace(/'/g, "''");
-            return `(message ILIKE '%${escaped}%' OR metadata::text ILIKE '%${escaped}%')`;
-          })
-          .join(" OR ");
-
-        const fallbackSql = `SELECT id, level, service, message, metadata, created_at FROM logs WHERE project_id = '${projectId}' AND (${keywordConditions}) ORDER BY created_at DESC LIMIT 50;`;
-
+    // 5. Fuzzy fallback for 0 log rows
+    if (rows.length === 0 && touchesLogs && Array.isArray(parsed.fallback_keywords)) {
+      const kws = parsed.fallback_keywords.filter((k: any) => typeof k === "string" && k.trim().length > 1);
+      if (kws.length > 0) {
+        console.log("⚠️ 0 rows — trying fuzzy fallback:", kws);
+        const cond = kws.map((k: string) => `(message ILIKE '%${k.replace(/'/g, "''")}%' OR metadata::text ILIKE '%${k.replace(/'/g, "''")}%')`).join(" OR ");
+        const fbSql = `SELECT id, level, service, message, metadata, created_at FROM logs WHERE project_id = '${projectId}' AND (${cond}) ORDER BY created_at DESC LIMIT 50;`;
         try {
-          const fallbackResult = await db.query(fallbackSql);
-          if (fallbackResult.rows.length > 0) {
-            console.log(
-              `✅ Fuzzy fallback matched ${fallbackResult.rows.length} rows.`
-            );
-            queryRows = fallbackResult.rows;
-            generatedSql = fallbackSql;
-            explanation = `Primary query returned no results. Fell back to fuzzy text search for: ${validKeywords.join(", ")}`;
+          const fbRes = await db.query(fbSql);
+          if (fbRes.rows.length > 0) {
+            rows = fbRes.rows;
+            sql = fbSql;
+            explanation = `Fuzzy fallback for: ${kws.join(", ")}`;
           }
-        } catch (fallbackErr) {
-          console.error("❌ Fuzzy fallback query failed:", fallbackErr);
-        }
+        } catch (e) { console.error("❌ Fuzzy fallback failed:", e); }
       }
     }
 
-    // ── Step 6: Summarize results in plain English ────────────────────────
-    try {
-      const summarizePrompt = this.buildSummarizePrompt(
-        prompt,
-        generatedSql,
-        queryRows,
-        intent
-      );
-      const { text: answer, modelUsed } = await this.generateWithFallback(
-        groq,
-        [summarizePrompt],
-        false
-      );
-      console.log(`🤖 Summary generation successful using model: ${modelUsed}`);
+    // 6. Extract ground truth DETERMINISTICALLY (code, not LLM)
+    const groundTruth = extractGroundTruth(rows);
+    console.log(`📊 Ground truth: ${groundTruth}`);
 
+    // 7. Summarize with ground truth as hard constraint
+    const summaryPrompt = this.buildSummaryPrompt(prompt, sql, rows, intent, groundTruth);
+    try {
+      let { text: answer, model } = await this.generate(groq, summaryPrompt, false);
+      console.log(`🤖 Summary by ${model}`);
+
+      // 8. Sanity check — if LLM contradicts data, regenerate once with stricter wording
+      if (answerContradictsData(answer, rows)) {
+        const retry = summaryPrompt +
+          `\n\n⚠️ CORRECTION REQUIRED: Your previous answer contradicted the GROUND TRUTH. ` +
+          `The database clearly shows non-zero results. Rewrite the answer correctly, starting with "Yes" or the actual count.`;
+        const retried = await this.generate(groq, retry, false);
+        answer = retried.text;
+        console.log(`🔄 Answer regenerated after contradiction detected`);
+      }
+
+      return { success: true, answer, sql, explanation, data: rows };
+    } catch (e: any) {
       return {
         success: true,
-        answer,
-        sql: generatedSql,
-        explanation,
-        data: queryRows,
-      };
-    } catch (error: any) {
-      console.error("❌ Summary generation error:", error);
-      return {
-        success: true, // DB data was retrieved successfully
-        answer: `Query executed successfully but summarization failed: ${error.message}. Raw results are included below.`,
-        sql: generatedSql,
-        explanation,
-        data: queryRows,
+        answer: `Query succeeded but summarization failed: ${e.message}`,
+        sql, explanation, data: rows,
       };
     }
   }
