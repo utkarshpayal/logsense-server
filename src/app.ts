@@ -7,7 +7,7 @@ import { authRoutes } from "./modules/auth/auth.routes";
 import { projectRoutes } from "./modules/projects/project.routes";
 import { apiKeyRoutes } from "./modules/apiKeys/api-key.routes";
 import { logRoutes } from "./modules/logs/log.routes";
-import { eventRoutes } from "./modules/logs/event.routes";
+import { eventRoutes } from "./modules/logs/events.routes";
 import { dashboardRoutes } from "./modules/dashboard/dashboard.routes";
 import { aiRoutes } from "./modules/ai/ai.routes";
 import { serializerCompiler, validatorCompiler } from "fastify-type-provider-zod";
