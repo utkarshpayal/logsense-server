@@ -1,4 +1,4 @@
-import { Pool } from "pg";
+import { Pool, PoolClient } from "pg";
 
 import {
   EmbeddedChunk,
@@ -15,8 +15,9 @@ import { VECTOR_TABLE } from "../rag.constants";
 export class PgVectorRepository implements VectorRepository {
   constructor(private readonly db: Pool) {}
 
-  async insert(chunk: EmbeddedChunk): Promise<void> {
-    await this.db.query(
+  async insert(chunk: EmbeddedChunk, client?: PoolClient): Promise<void> {
+    const executor = client ?? this.db;
+    await executor.query(
       `
       INSERT INTO ${VECTOR_TABLE}
       (
@@ -56,7 +57,7 @@ export class PgVectorRepository implements VectorRepository {
       await client.query("BEGIN");
 
       for (const chunk of chunks) {
-        await this.insert(chunk);
+        await this.insert(chunk, client);
       }
 
       await client.query("COMMIT");

@@ -7,6 +7,7 @@ exports.authRepository = void 0;
 const db_1 = require("../../config/db");
 const bcrypt_1 = __importDefault(require("bcrypt"));
 class AuthRepository {
+    //find by email service
     async findByEmail(email) {
         const result = await db_1.db.query(`
       SELECT
@@ -17,12 +18,10 @@ class AuthRepository {
         is_verified,
         created_at,
         updated_at,
-        slack_webhook_url,
         discord_webhook_url,
         email_alerts,
         email_frequency,
         min_severity,
-        slack_alerts,
         discord_alerts,
         retention_days
       FROM users
@@ -34,6 +33,7 @@ class AuthRepository {
         }
         return result.rows[0];
     }
+    //find by id service
     async findById(id) {
         const result = await db_1.db.query(`
       SELECT
@@ -43,12 +43,10 @@ class AuthRepository {
         is_verified,
         created_at,
         updated_at,
-        slack_webhook_url,
         discord_webhook_url,
         email_alerts,
         email_frequency,
         min_severity,
-        slack_alerts,
         discord_alerts,
         retention_days
       FROM users
@@ -60,6 +58,7 @@ class AuthRepository {
         }
         return result.rows[0];
     }
+    //create new user service
     async create(data) {
         const result = await db_1.db.query(`
       INSERT INTO users
@@ -81,17 +80,16 @@ class AuthRepository {
         is_verified,
         created_at,
         updated_at,
-        slack_webhook_url,
         discord_webhook_url,
         email_alerts,
         email_frequency,
         min_severity,
-        slack_alerts,
         discord_alerts,
         retention_days;
       `, [data.name, data.email, data.passwordHash]);
         return result.rows[0];
     }
+    //update user service
     async update(id, data) {
         const updates = [];
         const values = [id];
@@ -103,10 +101,6 @@ class AuthRepository {
         if (data.email !== undefined) {
             updates.push(`email = $${paramCounter++}`);
             values.push(data.email);
-        }
-        if (data.slackWebhookUrl !== undefined) {
-            updates.push(`slack_webhook_url = $${paramCounter++}`);
-            values.push(data.slackWebhookUrl);
         }
         if (data.discordWebhookUrl !== undefined) {
             updates.push(`discord_webhook_url = $${paramCounter++}`);
@@ -123,10 +117,6 @@ class AuthRepository {
         if (data.minSeverity !== undefined) {
             updates.push(`min_severity = $${paramCounter++}`);
             values.push(data.minSeverity);
-        }
-        if (data.slackAlerts !== undefined) {
-            updates.push(`slack_alerts = $${paramCounter++}`);
-            values.push(data.slackAlerts);
         }
         if (data.discordAlerts !== undefined) {
             updates.push(`discord_alerts = $${paramCounter++}`);
@@ -154,18 +144,17 @@ class AuthRepository {
         is_verified,
         created_at,
         updated_at,
-        slack_webhook_url,
         discord_webhook_url,
         email_alerts,
         email_frequency,
         min_severity,
-        slack_alerts,
         discord_alerts,
         retention_days;
     `;
         const result = await db_1.db.query(query, values);
         return result.rows[0];
     }
+    //login user service
     async login(email, passwordPlain) {
         const user = await this.findByEmail(email);
         if (!user) {

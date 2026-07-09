@@ -10,6 +10,8 @@ import {
 import { logsScheduler } from "../logs/logs.scheduler";
 
 class ProjectController {
+
+  //create new project controller
   async createProject(
     request: TypedRequest<{
       Body: CreateProjectDto;
@@ -35,6 +37,7 @@ class ProjectController {
         message: "Project created successfully",
         data: project,
       });
+
     } catch (error: any) {
       if (
         error.message === "Project with this name already exists" ||
@@ -46,6 +49,7 @@ class ProjectController {
     }
   }
 
+  //get user's projects controller
   async getProjects(
     request: TypedRequest,
     reply: TypedReply
@@ -67,6 +71,7 @@ class ProjectController {
     }
   }
 
+  //get single project controller`
   async getProject(
     request: TypedRequest<{
       Params: ProjectParamsDto;
@@ -96,6 +101,7 @@ class ProjectController {
     }
   }
 
+  //update project controller
   async updateProject(
     request: TypedRequest<{
       Params: ProjectParamsDto;
@@ -132,6 +138,7 @@ class ProjectController {
     }
   }
 
+  //delete project controller
   async deleteProject(
     request: TypedRequest<{
       Params: ProjectParamsDto;
@@ -159,6 +166,7 @@ class ProjectController {
     }
   }
 
+  //trigger daily report controller
   async triggerDailyReport(
     request: TypedRequest<{
       Params: ProjectParamsDto;
@@ -175,6 +183,7 @@ class ProjectController {
         return reply.forbidden("You do not own this project");
       }
 
+      // generate and send daily report
       const summary = await logsScheduler.generateAndSendDailyReport(request.params.id);
 
       return reply.send({

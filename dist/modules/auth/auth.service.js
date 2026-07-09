@@ -8,8 +8,10 @@ const bcrypt_1 = __importDefault(require("bcrypt"));
 const auth_repository_1 = require("./auth.repository");
 const jwt_service_1 = require("../../common/jwt/jwt.service");
 class AuthService {
+    //register service
     async register(data) {
         const existingUser = await auth_repository_1.authRepository.findByEmail(data.email);
+        //checking existing user
         if (existingUser) {
             throw new Error("Email already exists");
         }
@@ -21,16 +23,19 @@ class AuthService {
         });
         return user;
     }
+    //login service
     async login(data) {
         const user = await auth_repository_1.authRepository.login(data.email, data.password);
         return user;
     }
+    //refresh service
     async refresh(app, refreshToken) {
         const payload = jwt_service_1.jwtService.verify(app, refreshToken);
         const accessToken = jwt_service_1.jwtService.generateAccessToken(app, { sub: payload.sub });
         const newRefreshToken = jwt_service_1.jwtService.generateRefreshToken(app, { sub: payload.sub });
         return { accessToken, refreshToken: newRefreshToken };
     }
+    //user profile service 
     async me(userId) {
         const user = await auth_repository_1.authRepository.findById(userId);
         if (!user) {
@@ -38,14 +43,13 @@ class AuthService {
         }
         return user;
     }
+    //update user profile service
     async updateSettings(userId, data) {
         const updateData = {};
         if (data.name !== undefined)
             updateData.name = data.name;
         if (data.email !== undefined)
             updateData.email = data.email;
-        if (data.slack_webhook_url !== undefined)
-            updateData.slackWebhookUrl = data.slack_webhook_url;
         if (data.discord_webhook_url !== undefined)
             updateData.discordWebhookUrl = data.discord_webhook_url;
         if (data.email_alerts !== undefined)
@@ -54,8 +58,6 @@ class AuthService {
             updateData.emailFrequency = data.email_frequency;
         if (data.min_severity !== undefined)
             updateData.minSeverity = data.min_severity;
-        if (data.slack_alerts !== undefined)
-            updateData.slackAlerts = data.slack_alerts;
         if (data.discord_alerts !== undefined)
             updateData.discordAlerts = data.discord_alerts;
         if (data.retention_days !== undefined)

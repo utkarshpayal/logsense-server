@@ -19,13 +19,7 @@ exports.createProjectSchema = zod_1.z.object({
         .trim()
         .url("Invalid Discord Webhook URL")
         .optional()
-        .nullable(),
-    slack_webhook_url: zod_1.z
-        .string()
-        .trim()
-        .url("Invalid Slack Webhook URL")
-        .optional()
-        .nullable(),
+        .nullable()
 });
 exports.updateProjectSchema = zod_1.z.object({
     name: zod_1.z
@@ -44,13 +38,7 @@ exports.updateProjectSchema = zod_1.z.object({
         .trim()
         .url("Invalid Discord Webhook URL")
         .optional()
-        .nullable(),
-    slack_webhook_url: zod_1.z
-        .string()
-        .trim()
-        .url("Invalid Slack Webhook URL")
-        .optional()
-        .nullable(),
+        .nullable()
 });
 exports.projectParamsSchema = zod_1.z.object({
     id: zod_1.z.string().uuid("Invalid project ID format (UUID expected)"),

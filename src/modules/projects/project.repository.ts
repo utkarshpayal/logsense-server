@@ -6,14 +6,12 @@ export interface CreateProjectRepoData {
   description?: string | undefined;
   ownerId: string;
   discordWebhookUrl?: string | null;
-  slackWebhookUrl?: string | null;
 }
 
 export interface UpdateProjectRepoData {
   name?: string | undefined;
   description?: string | undefined;
   discordWebhookUrl?: string | null;
-  slackWebhookUrl?: string | null;
 }
 
 export interface Project {
@@ -23,7 +21,6 @@ export interface Project {
   slug: string;
   description: string | null;
   discord_webhook_url: string | null;
-  slack_webhook_url: string | null;
   is_active: boolean;
   created_at: Date;
   updated_at: Date;
@@ -38,10 +35,9 @@ class ProjectRepository {
         slug,
         description,
         owner_id,
-        discord_webhook_url,
-        slack_webhook_url
+        discord_webhook_url
       )
-      VALUES ($1, $2, $3, $4, $5, $6)
+      VALUES ($1, $2, $3, $4, $5)
       RETURNING
         id,
         owner_id,
@@ -49,7 +45,6 @@ class ProjectRepository {
         slug,
         description,
         discord_webhook_url,
-        slack_webhook_url,
         is_active,
         created_at,
         updated_at;
@@ -60,7 +55,6 @@ class ProjectRepository {
         data.description || null,
         data.ownerId,
         data.discordWebhookUrl || null,
-        data.slackWebhookUrl || null,
       ]
     );
     return result.rows[0]!;
@@ -84,10 +78,6 @@ class ProjectRepository {
       updates.push(`discord_webhook_url = $${paramCounter++}`);
       values.push(data.discordWebhookUrl);
     }
-    if (data.slackWebhookUrl !== undefined) {
-      updates.push(`slack_webhook_url = $${paramCounter++}`);
-      values.push(data.slackWebhookUrl);
-    }
 
     if (updates.length === 0) {
       const current = await this.findById(id);
@@ -108,7 +98,6 @@ class ProjectRepository {
         slug,
         description,
         discord_webhook_url,
-        slack_webhook_url,
         is_active,
         created_at,
         updated_at;
@@ -128,7 +117,6 @@ class ProjectRepository {
         slug,
         description,
         discord_webhook_url,
-        slack_webhook_url,
         is_active,
         created_at,
         updated_at
@@ -154,7 +142,6 @@ class ProjectRepository {
         slug,
         description,
         discord_webhook_url,
-        slack_webhook_url,
         is_active,
         created_at,
         updated_at
@@ -177,7 +164,6 @@ class ProjectRepository {
         slug,
         description,
         discord_webhook_url,
-        slack_webhook_url,
         is_active,
         created_at,
         updated_at
@@ -216,7 +202,6 @@ class ProjectRepository {
         slug,
         description,
         discord_webhook_url,
-        slack_webhook_url,
         is_active,
         created_at,
         updated_at

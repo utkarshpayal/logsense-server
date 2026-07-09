@@ -19,14 +19,7 @@ export const createProjectSchema = z.object({
     .trim()
     .url("Invalid Discord Webhook URL")
     .optional()
-    .nullable(),
-
-  slack_webhook_url: z
-    .string()
-    .trim()
-    .url("Invalid Slack Webhook URL")
-    .optional()
-    .nullable(),
+    .nullable()
 });
 
 export const updateProjectSchema = z.object({
@@ -48,14 +41,7 @@ export const updateProjectSchema = z.object({
     .trim()
     .url("Invalid Discord Webhook URL")
     .optional()
-    .nullable(),
-
-  slack_webhook_url: z
-    .string()
-    .trim()
-    .url("Invalid Slack Webhook URL")
-    .optional()
-    .nullable(),
+    .nullable()
 });
 
 export const projectParamsSchema = z.object({

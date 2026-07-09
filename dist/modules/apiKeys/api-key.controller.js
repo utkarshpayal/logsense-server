@@ -3,6 +3,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.apiKeyController = void 0;
 const api_key_service_1 = require("./api-key.service");
 class ApiKeyController {
+    //create api key for project controller
     async createApiKey(request, reply) {
         try {
             if (!request.user || !request.user.sub) {
@@ -23,6 +24,7 @@ class ApiKeyController {
             return reply.internalServerError(error.message || "Failed to create API key");
         }
     }
+    //get api keys for project controller
     async getApiKeys(request, reply) {
         try {
             if (!request.user || !request.user.sub) {
@@ -42,6 +44,7 @@ class ApiKeyController {
             return reply.internalServerError(error.message || "Failed to fetch API keys");
         }
     }
+    //delete a api key controller
     async deleteApiKey(request, reply) {
         try {
             if (!request.user || !request.user.sub) {
@@ -61,6 +64,7 @@ class ApiKeyController {
             return reply.internalServerError(error.message || "Failed to delete API key");
         }
     }
+    //rotate api key controller
     async rotateApiKey(request, reply) {
         try {
             if (!request.user || !request.user.sub) {
@@ -81,6 +85,7 @@ class ApiKeyController {
             return reply.internalServerError(error.message || "Failed to rotate API key");
         }
     }
+    //update api key status controller
     async updateActiveStatus(request, reply) {
         try {
             if (!request.user || !request.user.sub) {
@@ -102,6 +107,7 @@ class ApiKeyController {
             return reply.internalServerError(error.message || "Failed to update API key status");
         }
     }
+    //verify api key controller
     async verifyApiKey(request, reply) {
         try {
             if (!request.apiKey) {

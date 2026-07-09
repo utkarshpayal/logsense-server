@@ -6,7 +6,7 @@ const env_1 = require("./config/env");
 const logs_scheduler_1 = require("./modules/logs/logs.scheduler");
 async function Server() {
     await (0, db_1.connectDB)();
-    // Initialize the daily AI report scheduler
+    //Initialize the daily AI report scheduler
     logs_scheduler_1.logsScheduler.startDailyReportScheduler();
     await app_1.app.listen({
         port: env_1.env.PORT,

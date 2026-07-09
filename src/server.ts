@@ -6,7 +6,7 @@ import { logsScheduler } from "./modules/logs/logs.scheduler";
 async function Server() {
   await connectDB();
 
-  // Initialize the daily AI report scheduler
+  //Initialize the daily AI report scheduler
   logsScheduler.startDailyReportScheduler();
 
   await app.listen({

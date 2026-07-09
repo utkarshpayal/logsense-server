@@ -9,12 +9,10 @@ export interface User {
   is_verified: boolean;
   created_at: Date;
   updated_at: Date;
-  slack_webhook_url: string | null;
   discord_webhook_url: string | null;
   email_alerts: boolean;
   email_frequency: string;
   min_severity: string;
-  slack_alerts: boolean;
   discord_alerts: boolean;
   retention_days: number;
 }
@@ -27,12 +25,10 @@ export interface UserWithoutPassword {
   is_verified: boolean;
   created_at: Date;
   updated_at: Date;
-  slack_webhook_url: string | null;
   discord_webhook_url: string | null;
   email_alerts: boolean;
   email_frequency: string;
   min_severity: string;
-  slack_alerts: boolean;
   discord_alerts: boolean;
   retention_days: number;
 }
@@ -46,17 +42,16 @@ export interface CreateUserData {
 export interface UpdateUserRepoData {
   name?: string;
   email?: string;
-  slackWebhookUrl?: string | null;
   discordWebhookUrl?: string | null;
   emailAlerts?: boolean;
   emailFrequency?: string;
   minSeverity?: string;
-  slackAlerts?: boolean;
   discordAlerts?: boolean;
   retentionDays?: number;
 }
 
 class AuthRepository {
+  //find by email service
   async findByEmail(email: string): Promise<User | null> {
     const result = await db.query<User>(
       `
@@ -68,12 +63,10 @@ class AuthRepository {
         is_verified,
         created_at,
         updated_at,
-        slack_webhook_url,
         discord_webhook_url,
         email_alerts,
         email_frequency,
         min_severity,
-        slack_alerts,
         discord_alerts,
         retention_days
       FROM users
@@ -90,6 +83,7 @@ class AuthRepository {
     return result.rows[0]!;
   }
 
+  //find by id service
   async findById(id: string): Promise<UserWithoutPassword | null> {
     const result = await db.query<UserWithoutPassword>(
       `
@@ -100,12 +94,10 @@ class AuthRepository {
         is_verified,
         created_at,
         updated_at,
-        slack_webhook_url,
         discord_webhook_url,
         email_alerts,
         email_frequency,
         min_severity,
-        slack_alerts,
         discord_alerts,
         retention_days
       FROM users
@@ -122,6 +114,7 @@ class AuthRepository {
     return result.rows[0]!;
   }
 
+  //create new user service
   async create(data: CreateUserData): Promise<UserWithoutPassword> {
     const result = await db.query<UserWithoutPassword>(
       `
@@ -144,12 +137,10 @@ class AuthRepository {
         is_verified,
         created_at,
         updated_at,
-        slack_webhook_url,
         discord_webhook_url,
         email_alerts,
         email_frequency,
         min_severity,
-        slack_alerts,
         discord_alerts,
         retention_days;
       `,
@@ -159,6 +150,7 @@ class AuthRepository {
     return result.rows[0]!;
   }
 
+  //update user service
   async update(id: string, data: UpdateUserRepoData): Promise<UserWithoutPassword> {
     const updates: string[] = [];
     const values: any[] = [id];
@@ -171,10 +163,6 @@ class AuthRepository {
     if (data.email !== undefined) {
       updates.push(`email = $${paramCounter++}`);
       values.push(data.email);
-    }
-    if (data.slackWebhookUrl !== undefined) {
-      updates.push(`slack_webhook_url = $${paramCounter++}`);
-      values.push(data.slackWebhookUrl);
     }
     if (data.discordWebhookUrl !== undefined) {
       updates.push(`discord_webhook_url = $${paramCounter++}`);
@@ -191,10 +179,6 @@ class AuthRepository {
     if (data.minSeverity !== undefined) {
       updates.push(`min_severity = $${paramCounter++}`);
       values.push(data.minSeverity);
-    }
-    if (data.slackAlerts !== undefined) {
-      updates.push(`slack_alerts = $${paramCounter++}`);
-      values.push(data.slackAlerts);
     }
     if (data.discordAlerts !== undefined) {
       updates.push(`discord_alerts = $${paramCounter++}`);
@@ -224,12 +208,10 @@ class AuthRepository {
         is_verified,
         created_at,
         updated_at,
-        slack_webhook_url,
         discord_webhook_url,
         email_alerts,
         email_frequency,
         min_severity,
-        slack_alerts,
         discord_alerts,
         retention_days;
     `;
@@ -238,6 +220,7 @@ class AuthRepository {
     return result.rows[0]!;
   }
 
+  //login user service
   async login(email: string, passwordPlain: string): Promise<UserWithoutPassword> {
     const user = await this.findByEmail(email);
     if (!user) {
@@ -250,6 +233,7 @@ class AuthRepository {
     const { password_hash, ...userWithoutPassword } = user;
     return userWithoutPassword;
   }
+  
 }
 
 export const authRepository = new AuthRepository();

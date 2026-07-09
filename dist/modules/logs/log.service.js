@@ -6,6 +6,7 @@ const project_repository_1 = require("../projects/project.repository");
 const not_found_error_1 = require("../../common/errors/not-found.error");
 const forbidden_error_1 = require("../../common/errors/forbidden.error");
 class LogService {
+    //create single log service
     async createLog(projectId, apiKeyId, data) {
         const project = await project_repository_1.projectRepository.findById(projectId);
         if (!project) {
@@ -18,6 +19,7 @@ class LogService {
         });
         return log;
     }
+    //create logs service
     async createLogs(projectId, apiKeyId, logsData) {
         const project = await project_repository_1.projectRepository.findById(projectId);
         if (!project) {
@@ -46,6 +48,7 @@ class LogService {
         const projects = await project_repository_1.projectRepository.findByOwner(userId);
         return projects.map((p) => p.id);
     }
+    //TODO: i guess its returning all projects log count need to fix this
     async getLogs(userId, filters) {
         const projectIds = await this.getScopedProjectIds(userId, filters.projectId);
         if (projectIds.length === 0) {
@@ -53,6 +56,7 @@ class LogService {
         }
         return log_repository_1.logRepository.find(projectIds, filters);
     }
+    //get single log service
     async getLog(userId, logId) {
         const log = await log_repository_1.logRepository.findById(logId);
         if (!log) {
@@ -64,6 +68,7 @@ class LogService {
         }
         return log;
     }
+    //delete log service
     async deleteLog(userId, logId) {
         const log = await log_repository_1.logRepository.findById(logId);
         if (!log) {
@@ -91,6 +96,7 @@ class LogService {
         }
         return log_repository_1.logRepository.getOverview(projectIds);
     }
+    //get dashboard timeline service
     async getDashboardTimeline(userId, projectIdFilter) {
         const projectIds = await this.getScopedProjectIds(userId, projectIdFilter);
         if (projectIds.length === 0) {
@@ -98,6 +104,7 @@ class LogService {
         }
         return log_repository_1.logRepository.getTimeline(projectIds);
     }
+    //get dashboard log levels service
     async getDashboardLogLevels(userId, projectIdFilter) {
         const projectIds = await this.getScopedProjectIds(userId, projectIdFilter);
         if (projectIds.length === 0) {
@@ -110,6 +117,7 @@ class LogService {
         }
         return log_repository_1.logRepository.getLogLevelCounts(projectIds);
     }
+    //get dashboard services service
     async getDashboardServices(userId, projectIdFilter) {
         const projectIds = await this.getScopedProjectIds(userId, projectIdFilter);
         if (projectIds.length === 0) {
@@ -117,6 +125,7 @@ class LogService {
         }
         return log_repository_1.logRepository.getTopServices(projectIds);
     }
+    //get dashboard recent errors service
     async getDashboardRecentErrors(userId, projectIdFilter) {
         const projectIds = await this.getScopedProjectIds(userId, projectIdFilter);
         if (projectIds.length === 0) {
@@ -124,6 +133,7 @@ class LogService {
         }
         return log_repository_1.logRepository.getRecentErrors(projectIds, 10);
     }
+    //TODO: need to improve onboarding logic
     async getDashboardOnboarding(userId, projectIdFilter) {
         const projectIds = await this.getScopedProjectIds(userId, projectIdFilter);
         if (projectIds.length === 0) {

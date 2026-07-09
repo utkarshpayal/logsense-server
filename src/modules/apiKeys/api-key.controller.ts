@@ -8,6 +8,8 @@ import {
 } from "./api-key.schema";
 
 class ApiKeyController {
+
+  //create api key for project controller
   async createApiKey(
     request: TypedRequest<{
       Params: ProjectApiKeyParamsDto;
@@ -39,6 +41,7 @@ class ApiKeyController {
     }
   }
 
+  //get api keys for project controller
   async getApiKeys(
     request: TypedRequest<{
       Params: ProjectApiKeyParamsDto;
@@ -67,6 +70,7 @@ class ApiKeyController {
     }
   }
 
+  //delete a api key controller
   async deleteApiKey(
     request: TypedRequest<{
       Params: ApiKeyParamsDto;
@@ -95,6 +99,7 @@ class ApiKeyController {
     }
   }
 
+  //rotate api key controller
   async rotateApiKey(
     request: TypedRequest<{
       Params: ApiKeyParamsDto;
@@ -124,6 +129,7 @@ class ApiKeyController {
     }
   }
 
+  //update api key status controller
   async updateActiveStatus(
     request: TypedRequest<{
       Params: ApiKeyParamsDto;
@@ -156,6 +162,7 @@ class ApiKeyController {
     }
   }
 
+  //verify api key controller
   async verifyApiKey(
     request: TypedRequest,
     reply: TypedReply

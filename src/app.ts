@@ -28,7 +28,7 @@ app.addHook("preParsing", (request, reply, payload, done) => {
   const contentEncoding = request.headers["content-encoding"];
   if (contentEncoding === "gzip") {
     const unzip = zlib.createGunzip();
-    
+
     // Attach and track receivedEncodedLength dynamically as compressed chunks arrive
     (unzip as any).receivedEncodedLength = 0;
     payload.on("data", (chunk) => {
@@ -44,6 +44,7 @@ app.addHook("preParsing", (request, reply, payload, done) => {
     done(null, payload);
   }
 });
+
 
 app.setErrorHandler((error: any, request, reply) => {
   if (error instanceof BaseError) {
@@ -80,24 +81,35 @@ app.register(jwt, {
   secret: env.JWT_SECRET,
 });
 
+//auth routes
 app.register(authRoutes, {
   prefix: '/auth',
 });
 
+//project routes
 app.register(projectRoutes, {
   prefix: '/projects',
 });
 
+//api-keys routes
 app.register(apiKeyRoutes, {
   prefix: '/api-keys',
 });
+
+//logs routes
 app.register(logRoutes, {
   prefix: '/logs',
 });
+
+//event route
 app.register(eventRoutes);
+
+//dashboard routes
 app.register(dashboardRoutes, {
   prefix: '/dashboard',
 });
+
+//ai routes TODO: need to fix it 
 app.register(aiRoutes, {
   prefix: '/projects',
 });

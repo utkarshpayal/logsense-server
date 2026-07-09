@@ -5,6 +5,8 @@ import { NotFoundError } from "../../common/errors/not-found.error";
 import { ForbiddenError } from "../../common/errors/forbidden.error";
 
 class LogService {
+
+  //create single log service
   async createLog(
     projectId: string,
     apiKeyId: string | null,
@@ -25,11 +27,13 @@ class LogService {
     return log;
   }
 
+  //create logs service
   async createLogs(
     projectId: string,
     apiKeyId: string | null,
     logsData: any[]
   ): Promise<Log[]> {
+
     const project = await projectRepository.findById(projectId);
 
     if (!project) {
@@ -66,6 +70,8 @@ class LogService {
     return projects.map((p) => p.id);
   }
 
+
+  //TODO: i guess its returning all projects log count need to fix this
   async getLogs(userId: string, filters: GetLogsQueryDto) {
     const projectIds = await this.getScopedProjectIds(userId, filters.projectId);
 
@@ -76,6 +82,7 @@ class LogService {
     return logRepository.find(projectIds, filters);
   }
 
+  //get single log service
   async getLog(userId: string, logId: string): Promise<Log> {
     const log = await logRepository.findById(logId);
 
@@ -91,6 +98,7 @@ class LogService {
     return log;
   }
 
+  //delete log service
   async deleteLog(userId: string, logId: string): Promise<void> {
     const log = await logRepository.findById(logId);
 
@@ -125,6 +133,7 @@ class LogService {
     return logRepository.getOverview(projectIds);
   }
 
+  //get dashboard timeline service
   async getDashboardTimeline(userId: string, projectIdFilter?: string) {
     const projectIds = await this.getScopedProjectIds(userId, projectIdFilter);
 
@@ -135,6 +144,7 @@ class LogService {
     return logRepository.getTimeline(projectIds);
   }
 
+  //get dashboard log levels service
   async getDashboardLogLevels(userId: string, projectIdFilter?: string) {
     const projectIds = await this.getScopedProjectIds(userId, projectIdFilter);
 
@@ -150,6 +160,7 @@ class LogService {
     return logRepository.getLogLevelCounts(projectIds);
   }
 
+  //get dashboard services service
   async getDashboardServices(userId: string, projectIdFilter?: string) {
     const projectIds = await this.getScopedProjectIds(userId, projectIdFilter);
 
@@ -160,6 +171,7 @@ class LogService {
     return logRepository.getTopServices(projectIds);
   }
 
+  //get dashboard recent errors service
   async getDashboardRecentErrors(userId: string, projectIdFilter?: string) {
     const projectIds = await this.getScopedProjectIds(userId, projectIdFilter);
 
@@ -170,6 +182,7 @@ class LogService {
     return logRepository.getRecentErrors(projectIds, 10);
   }
 
+  //TODO: need to improve onboarding logic
   async getDashboardOnboarding(userId: string, projectIdFilter?: string) {
     const projectIds = await this.getScopedProjectIds(userId, projectIdFilter);
 

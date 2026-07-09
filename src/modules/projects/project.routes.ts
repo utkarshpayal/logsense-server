@@ -14,6 +14,7 @@ import {
 export async function projectRoutes(app: FastifyInstance) {
   const typedApp = app.withTypeProvider<ZodTypeProvider>();
 
+  //create project route
   typedApp.post<{
     Body: CreateProjectDto;
   }>("/", {
@@ -23,10 +24,12 @@ export async function projectRoutes(app: FastifyInstance) {
     preHandler: [authenticate],
   }, projectController.createProject);
 
+  //get project route
   typedApp.get("/", {
     preHandler: [authenticate]
   }, projectController.getProjects);
 
+  //get specific project route
   typedApp.get<{
     Params: ProjectParamsDto;
   }>("/:id", {
@@ -36,6 +39,7 @@ export async function projectRoutes(app: FastifyInstance) {
     preHandler: [authenticate],
   }, projectController.getProject);
 
+  //update project route
   typedApp.put<{
     Params: ProjectParamsDto;
     Body: UpdateProjectDto;
@@ -47,6 +51,7 @@ export async function projectRoutes(app: FastifyInstance) {
     preHandler: [authenticate],
   }, projectController.updateProject);
 
+  //delete project route
   typedApp.delete<{
     Params: ProjectParamsDto;
   }>("/:id", {
@@ -56,6 +61,7 @@ export async function projectRoutes(app: FastifyInstance) {
     preHandler: [authenticate],
   }, projectController.deleteProject);
 
+  //daily report route
   typedApp.post<{
     Params: ProjectParamsDto;
   }>("/:id/daily-report", {

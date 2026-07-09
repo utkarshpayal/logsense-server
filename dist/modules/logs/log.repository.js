@@ -6,6 +6,7 @@ const gemini_client_1 = require("../ai/gemini.client");
 class LogRepository {
     async create(data) {
         const textToEmbed = `${data.level} ${data.service || ""} ${data.message} ${data.metadata ? JSON.stringify(data.metadata) : ""}`;
+        //generate embedding
         const embedding = await gemini_client_1.geminiClient.generateEmbedding(textToEmbed);
         const result = await db_1.db.query(`
       INSERT INTO logs
@@ -164,6 +165,7 @@ class LogRepository {
             db_1.db.query("SELECT COUNT(*)::int as count FROM logs WHERE project_id = ANY($1) AND level = 'error'", [projectIds]),
             db_1.db.query("SELECT COUNT(*)::int as count FROM logs WHERE project_id = ANY($1) AND level = 'warn'", [projectIds]),
             db_1.db.query("SELECT COUNT(*)::int as count FROM api_keys WHERE project_id = ANY($1)", [projectIds]),
+            //TODO: implement properly
             db_1.db.query(`
         SELECT ROUND(COALESCE(AVG(COALESCE((metadata->>'latency_ms')::int, (metadata->>'latency')::int)), 0))::int as avg_latency
         FROM logs
@@ -183,6 +185,7 @@ class LogRepository {
             averageLatencyMs: latencyRes.rows[0]?.avg_latency || 0,
         };
     }
+    //TODO: need to improve
     async getTimeline(projectIds) {
         const result = await db_1.db.query(`
       SELECT
@@ -210,6 +213,7 @@ class LogRepository {
             count: countsMap.get(level) || 0,
         }));
     }
+    //TODO: need to understand
     async getTopServices(projectIds) {
         const result = await db_1.db.query(`
       SELECT
@@ -235,6 +239,7 @@ class LogRepository {
       `, [projectIds, limit]);
         return result.rows;
     }
+    //TODO: need to improve onboarding logic
     async getOnboardingLogs(projectIds) {
         const result = await db_1.db.query(`
       SELECT *

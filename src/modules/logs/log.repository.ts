@@ -62,6 +62,7 @@ export interface ServiceCount {
 class LogRepository {
   async create(data: CreateLogRepoData): Promise<Log> {
     const textToEmbed = `${data.level} ${data.service || ""} ${data.message} ${data.metadata ? JSON.stringify(data.metadata) : ""}`;
+    //generate embedding
     const embedding = await geminiClient.generateEmbedding(textToEmbed);
 
     const result = await db.query<Log>(
@@ -281,6 +282,7 @@ class LogRepository {
       db.query<{ count: number }>("SELECT COUNT(*)::int as count FROM logs WHERE project_id = ANY($1) AND level = 'error'", [projectIds]),
       db.query<{ count: number }>("SELECT COUNT(*)::int as count FROM logs WHERE project_id = ANY($1) AND level = 'warn'", [projectIds]),
       db.query<{ count: number }>("SELECT COUNT(*)::int as count FROM api_keys WHERE project_id = ANY($1)", [projectIds]),
+      //TODO: implement properly
       db.query<{ avg_latency: number }>(
         `
         SELECT ROUND(COALESCE(AVG(COALESCE((metadata->>'latency_ms')::int, (metadata->>'latency')::int)), 0))::int as avg_latency
@@ -306,6 +308,8 @@ class LogRepository {
     };
   }
 
+
+  //TODO: need to improve
   async getTimeline(projectIds: string[]): Promise<TimelineData[]> {
     const result = await db.query<TimelineData>(
       `
@@ -324,6 +328,7 @@ class LogRepository {
     return result.rows;
   }
 
+  
   async getLogLevelCounts(projectIds: string[]): Promise<LogLevelCountItem[]> {
     const result = await db.query<{ level: string; count: number }>(
       `
@@ -344,6 +349,8 @@ class LogRepository {
     }));
   }
 
+
+  //TODO: need to understand
   async getTopServices(projectIds: string[]): Promise<ServiceCount[]> {
     const result = await db.query<ServiceCount>(
       `
@@ -379,6 +386,7 @@ class LogRepository {
     return result.rows;
   }
 
+  //TODO: need to improve onboarding logic
   async getOnboardingLogs(projectIds: string[]): Promise<Log[]> {
     const result = await db.query<Log>(
       `

@@ -3,6 +3,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.authController = void 0;
 const auth_service_1 = require("./auth.service");
 class AuthController {
+    //register controller
     async register(request, reply) {
         const user = await auth_service_1.authService.register(request.body);
         const accessToken = request.server.jwt.sign({ sub: user.id }, { expiresIn: "15m" });
@@ -17,6 +18,7 @@ class AuthController {
             },
         });
     }
+    //login controller
     async login(request, reply) {
         const user = await auth_service_1.authService.login(request.body);
         const accessToken = request.server.jwt.sign({ sub: user.id }, { expiresIn: "15m" });
@@ -31,12 +33,14 @@ class AuthController {
             },
         });
     }
+    //logout controller
     async logout(request, reply) {
         return reply.code(200).send({
             success: true,
             message: "Logged out successfully",
         });
     }
+    //refresh tokens controller
     async refresh(request, reply) {
         const tokens = await auth_service_1.authService.refresh(request.server, request.body.refreshToken);
         return reply.code(200).send({
@@ -45,6 +49,7 @@ class AuthController {
             data: tokens,
         });
     }
+    //user controller
     async me(request, reply) {
         const user = await auth_service_1.authService.me(request.user.sub);
         return reply.code(200).send({
@@ -52,6 +57,7 @@ class AuthController {
             data: user,
         });
     }
+    // settings controller
     async updateSettings(request, reply) {
         if (!request.user || !request.user.sub) {
             return reply.code(401).send({

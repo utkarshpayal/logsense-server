@@ -7,6 +7,7 @@ import { ConflictError } from "../../common/errors/conflict.error";
 import { NotFoundError } from "../../common/errors/not-found.error";
 
 class ProjectService {
+    //create project service
     async createProject(
         data: CreateProjectDto & {
             ownerId: string;
@@ -26,16 +27,17 @@ class ProjectService {
             slug,
             description: data.description,
             discordWebhookUrl: data.discord_webhook_url || null,
-            slackWebhookUrl: data.slack_webhook_url || null,
         });
 
         return project;
     }
 
+    //get projects service
     async getProjects(ownerId: string) {
         return projectRepository.findByOwner(ownerId);
     }
 
+    //get specific project service
     async getProject(id: string) {
         const project = await projectRepository.findById(id);
 
@@ -46,6 +48,8 @@ class ProjectService {
         return project;
     }
 
+
+    //update project service
     async updateProject(
         id: string,
         data: UpdateProjectDto
@@ -60,11 +64,11 @@ class ProjectService {
         if (data.name !== undefined) updateData.name = data.name;
         if (data.description !== undefined) updateData.description = data.description;
         if (data.discord_webhook_url !== undefined) updateData.discordWebhookUrl = data.discord_webhook_url;
-        if (data.slack_webhook_url !== undefined) updateData.slackWebhookUrl = data.slack_webhook_url;
 
         return projectRepository.update(id, updateData);
     }
 
+    //delete project service
     async deleteProject(id: string) {
         const project = await projectRepository.findById(id);
 
@@ -75,6 +79,7 @@ class ProjectService {
         await projectRepository.softDelete(id);
     }
 
+    //generate slug service
     private generateSlug(name: string) {
         return name
             .trim()

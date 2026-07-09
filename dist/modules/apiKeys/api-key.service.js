@@ -10,6 +10,7 @@ const project_repository_1 = require("../projects/project.repository");
 const not_found_error_1 = require("../../common/errors/not-found.error");
 const unauthorized_error_1 = require("../../common/errors/unauthorized.error");
 class ApiKeyService {
+    //create api key service
     async createApiKey(projectId, data) {
         const project = await project_repository_1.projectRepository.findById(projectId);
         if (!project) {
@@ -32,6 +33,7 @@ class ApiKeyService {
             key: rawKey,
         };
     }
+    //get api keys for project service
     async getApiKeys(projectId) {
         const project = await project_repository_1.projectRepository.findById(projectId);
         if (!project) {
@@ -39,6 +41,7 @@ class ApiKeyService {
         }
         return api_key_repository_1.apiKeyRepository.findByProject(projectId);
     }
+    //delete api key for project service
     async deleteApiKey(id) {
         const apiKey = await api_key_repository_1.apiKeyRepository.findById(id);
         if (!apiKey) {
@@ -46,6 +49,7 @@ class ApiKeyService {
         }
         await api_key_repository_1.apiKeyRepository.delete(id);
     }
+    //rotate api key for project service
     async rotateApiKey(id) {
         const apiKey = await api_key_repository_1.apiKeyRepository.findById(id);
         if (!apiKey) {
@@ -65,6 +69,7 @@ class ApiKeyService {
             key: rawKey,
         };
     }
+    //update active status of api key for project service
     async updateActiveStatus(id, isActive) {
         const apiKey = await api_key_repository_1.apiKeyRepository.findById(id);
         if (!apiKey) {
@@ -74,6 +79,7 @@ class ApiKeyService {
             is_active: isActive,
         });
     }
+    //verify api key for project service
     async verify(rawApiKey) {
         const keyHash = node_crypto_1.default
             .createHash("sha256")

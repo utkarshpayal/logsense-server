@@ -6,8 +6,10 @@ import { AiChatResult } from "./types/agent.types";
  * AiService — thin wrapper over the new Agent Orchestrator.
  */
 class AiService {
+
+  // query logs controller
   async queryLogs(projectId: string, prompt: string): Promise<AiChatResult> {
-    // Guard: Groq must be configured
+    // Guard: LLM must be configured
     if (!groqClient.isConfigured()) {
       return {
         success: false,

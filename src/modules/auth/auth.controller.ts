@@ -3,6 +3,7 @@ import { authService } from "./auth.service";
 import { LoginDto, RegisterDto, RefreshDto } from "./auth.schema";
 
 class AuthController {
+  //register controller
   async register(
     request: FastifyRequest<{
       Body: RegisterDto;
@@ -31,6 +32,8 @@ class AuthController {
       },
     });
   }
+
+  //login controller
   async login(request: FastifyRequest<{
     Body: LoginDto;
   }>,
@@ -59,6 +62,7 @@ class AuthController {
 
   }
 
+  //logout controller
   async logout(request: FastifyRequest, reply: FastifyReply) {
     return reply.code(200).send({
       success: true,
@@ -66,6 +70,7 @@ class AuthController {
     });
   }
 
+  //refresh tokens controller
   async refresh(
     request: FastifyRequest<{
       Body: RefreshDto;
@@ -80,6 +85,7 @@ class AuthController {
     });
   }
 
+  //user controller
   async me(request: FastifyRequest, reply: FastifyReply) {
     const user = await authService.me(request.user.sub);
     return reply.code(200).send({
@@ -88,6 +94,7 @@ class AuthController {
     });
   }
 
+  // settings controller
   async updateSettings(request: FastifyRequest, reply: FastifyReply) {
     if (!request.user || !request.user.sub) {
       return reply.code(401).send({

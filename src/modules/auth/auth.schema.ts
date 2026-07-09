@@ -1,5 +1,6 @@
 import { z } from "zod";
 
+//register schema
 export const registerSchema = z.object({
   name: z
     .string()
@@ -18,18 +19,21 @@ export const registerSchema = z.object({
     .max(100)
 });
 
+//login schema
 export const loginSchema = z.object({
   email: z.email().trim().toLowerCase(),
 
   password: z.string().min(1, "Password is required")
 });
 
-export type LoginDto = z.infer<typeof loginSchema>;
-
-export type RegisterDto = z.infer<typeof registerSchema>;
-
+//refresh tokens schema
 export const refreshSchema = z.object({
   refreshToken: z.string().min(1, "Refresh token is required")
 });
+
+
+export type LoginDto = z.infer<typeof loginSchema>;
+
+export type RegisterDto = z.infer<typeof registerSchema>;
 
 export type RefreshDto = z.infer<typeof refreshSchema>;

@@ -72,6 +72,8 @@ function mapSdkEventToLogData(event: any, defaultProjectId: string, defaultEnv: 
 }
 
 class LogController {
+
+  //create log controller
   async createLog(
     request: TypedRequest<{
       Body: any;
@@ -121,6 +123,7 @@ class LogController {
     });
   }
 
+  //get logs controller
   async getLogs(
     request: TypedRequest<{
       Querystring: GetLogsQueryDto;
@@ -146,6 +149,7 @@ class LogController {
     });
   }
 
+  //get specific log controller
   async getLog(
     request: TypedRequest<{
       Params: LogParamsDto;
@@ -167,6 +171,7 @@ class LogController {
     });
   }
 
+  //delete specific log controller
   async deleteLog(
     request: TypedRequest<{
       Params: LogParamsDto;
@@ -188,7 +193,7 @@ class LogController {
     });
   }
 
-  // Dashboard handlers
+  // Dashboard overview controller
   async getDashboardOverview(
     request: TypedRequest<{
       Querystring: DashboardQueryDto;
@@ -209,6 +214,7 @@ class LogController {
     });
   }
 
+  //dashboard timeline controller
   async getDashboardTimeline(
     request: TypedRequest<{
       Querystring: DashboardQueryDto;
@@ -229,6 +235,7 @@ class LogController {
     });
   }
 
+  //dashboard log levels controller
   async getDashboardLogLevels(
     request: TypedRequest<{
       Querystring: DashboardQueryDto;
@@ -249,6 +256,7 @@ class LogController {
     });
   }
 
+  //dashboard services controller
   async getDashboardServices(
     request: TypedRequest<{
       Querystring: DashboardQueryDto;
@@ -269,6 +277,7 @@ class LogController {
     });
   }
 
+  //dashboard recent errors
   async getDashboardRecentErrors(
     request: TypedRequest<{
       Querystring: DashboardQueryDto;
@@ -289,6 +298,7 @@ class LogController {
     });
   }
 
+  //get onboarding logs TODO: need to improve
   async getDashboardOnboarding(
     request: TypedRequest<{
       Querystring: DashboardQueryDto;

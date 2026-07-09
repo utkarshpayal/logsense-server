@@ -7,6 +7,7 @@ import { ForbiddenError } from "../../common/errors/forbidden.error";
 import { UnauthorizedError } from "../../common/errors/unauthorized.error";
 
 class AiController {
+  // chat with ai logs assistant controller
   async chat(
     request: TypedRequest<{
       Params: AiChatParamsDto;

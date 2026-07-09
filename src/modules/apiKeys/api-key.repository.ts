@@ -80,7 +80,7 @@ class ApiKeyRepository {
       `,
       [projectId]
     );
-
+    
     return result.rows;
   }
 

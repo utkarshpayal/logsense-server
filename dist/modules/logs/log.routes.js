@@ -7,7 +7,7 @@ const log_controller_1 = require("./log.controller");
 const log_schema_1 = require("./log.schema");
 async function logRoutes(app) {
     const router = app.withTypeProvider();
-    // Ingest Log via API Key (POST /logs)
+    // ingets logs via api key route controller
     router.post("/", {
         preHandler: [api_key_auth_middleware_1.authenticateApiKey],
         schema: {

@@ -72,22 +72,29 @@ exports.app.register(sensible_1.default);
 exports.app.register(jwt_1.default, {
     secret: env_1.env.JWT_SECRET,
 });
+//auth routes
 exports.app.register(auth_routes_1.authRoutes, {
     prefix: '/auth',
 });
+//project routes
 exports.app.register(project_routes_1.projectRoutes, {
     prefix: '/projects',
 });
+//api-keys routes
 exports.app.register(api_key_routes_1.apiKeyRoutes, {
     prefix: '/api-keys',
 });
+//logs routes
 exports.app.register(log_routes_1.logRoutes, {
     prefix: '/logs',
 });
+//event route
 exports.app.register(events_routes_1.eventRoutes);
+//dashboard routes
 exports.app.register(dashboard_routes_1.dashboardRoutes, {
     prefix: '/dashboard',
 });
+//ai routes TODO: need to fix it 
 exports.app.register(ai_routes_1.aiRoutes, {
     prefix: '/projects',
 });

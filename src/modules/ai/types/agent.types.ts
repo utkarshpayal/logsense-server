@@ -9,6 +9,7 @@ export interface ConversationContext {
   metadata?: Record<string, any>;
 }
 
+//tool execution result interface
 export interface ToolExecutionResult {
   toolName: string;
   success: boolean;

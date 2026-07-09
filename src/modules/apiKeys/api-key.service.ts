@@ -7,6 +7,7 @@ import { NotFoundError } from "../../common/errors/not-found.error";
 import { UnauthorizedError } from "../../common/errors/unauthorized.error";
 
 class ApiKeyService {
+    //create api key service
     async createApiKey(
         projectId: string,
         data: CreateApiKeyDto
@@ -38,6 +39,7 @@ class ApiKeyService {
         };
     }
 
+    //get api keys for project service
     async getApiKeys(projectId: string) {
         const project = await projectRepository.findById(projectId);
 
@@ -48,6 +50,7 @@ class ApiKeyService {
         return apiKeyRepository.findByProject(projectId);
     }
 
+    //delete api key for project service
     async deleteApiKey(id: string) {
         const apiKey = await apiKeyRepository.findById(id);
 
@@ -58,6 +61,7 @@ class ApiKeyService {
         await apiKeyRepository.delete(id);
     }
 
+    //rotate api key for project service
     async rotateApiKey(id: string) {
         const apiKey = await apiKeyRepository.findById(id);
 
@@ -83,6 +87,7 @@ class ApiKeyService {
         };
     }
 
+    //update active status of api key for project service
     async updateActiveStatus(id: string, isActive: boolean) {
         const apiKey = await apiKeyRepository.findById(id);
 
@@ -95,6 +100,7 @@ class ApiKeyService {
         });
     }
 
+    //verify api key for project service
     async verify(rawApiKey: string): Promise<ApiKey> {
         const keyHash = crypto
             .createHash("sha256")

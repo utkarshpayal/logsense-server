@@ -6,21 +6,25 @@ const auth_middleware_1 = require("../../common/middleware/auth.middleware");
 const project_schema_1 = require("./project.schema");
 async function projectRoutes(app) {
     const typedApp = app.withTypeProvider();
+    //create project route
     typedApp.post("/", {
         schema: {
             body: project_schema_1.createProjectSchema,
         },
         preHandler: [auth_middleware_1.authenticate],
     }, project_controller_1.projectController.createProject);
+    //get project route
     typedApp.get("/", {
         preHandler: [auth_middleware_1.authenticate]
     }, project_controller_1.projectController.getProjects);
+    //get specific project route
     typedApp.get("/:id", {
         schema: {
             params: project_schema_1.projectParamsSchema,
         },
         preHandler: [auth_middleware_1.authenticate],
     }, project_controller_1.projectController.getProject);
+    //update project route
     typedApp.put("/:id", {
         schema: {
             params: project_schema_1.projectParamsSchema,
@@ -28,12 +32,14 @@ async function projectRoutes(app) {
         },
         preHandler: [auth_middleware_1.authenticate],
     }, project_controller_1.projectController.updateProject);
+    //delete project route
     typedApp.delete("/:id", {
         schema: {
             params: project_schema_1.projectParamsSchema,
         },
         preHandler: [auth_middleware_1.authenticate],
     }, project_controller_1.projectController.deleteProject);
+    //daily report route
     typedApp.post("/:id/daily-report", {
         schema: {
             params: project_schema_1.projectParamsSchema,

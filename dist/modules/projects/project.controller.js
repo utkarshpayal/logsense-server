@@ -4,6 +4,7 @@ exports.projectController = void 0;
 const project_service_1 = require("./project.service");
 const logs_scheduler_1 = require("../logs/logs.scheduler");
 class ProjectController {
+    //create new project controller
     async createProject(request, reply) {
         try {
             if (!request.user || !request.user.sub) {
@@ -28,6 +29,7 @@ class ProjectController {
             return reply.internalServerError(error.message || "Failed to create project");
         }
     }
+    //get user's projects controller
     async getProjects(request, reply) {
         try {
             if (!request.user || !request.user.sub) {
@@ -44,6 +46,7 @@ class ProjectController {
             return reply.internalServerError(error.message || "Failed to fetch projects");
         }
     }
+    //get single project controller`
     async getProject(request, reply) {
         try {
             if (!request.user || !request.user.sub) {
@@ -62,6 +65,7 @@ class ProjectController {
             return reply.internalServerError(error.message || "Failed to fetch project");
         }
     }
+    //update project controller
     async updateProject(request, reply) {
         try {
             if (!request.user || !request.user.sub) {
@@ -84,6 +88,7 @@ class ProjectController {
             return reply.internalServerError(error.message || "Failed to update project");
         }
     }
+    //delete project controller
     async deleteProject(request, reply) {
         try {
             if (!request.user || !request.user.sub) {
@@ -102,6 +107,7 @@ class ProjectController {
             return reply.internalServerError(error.message || "Failed to delete project");
         }
     }
+    //trigger daily report controller
     async triggerDailyReport(request, reply) {
         try {
             if (!request.user || !request.user.sub) {
@@ -111,6 +117,7 @@ class ProjectController {
             if (project.owner_id !== request.user.sub) {
                 return reply.forbidden("You do not own this project");
             }
+            // generate and send daily report
             const summary = await logs_scheduler_1.logsScheduler.generateAndSendDailyReport(request.params.id);
             return reply.send({
                 success: true,

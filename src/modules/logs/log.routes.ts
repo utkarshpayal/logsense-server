@@ -6,11 +6,9 @@ import { authenticateApiKey } from "../../common/middleware/api-key-auth.middlew
 import { logController } from "./log.controller";
 
 import {
-  createLogSchema,
   ingestLogsSchema,
   getLogsQuerySchema,
   logParamsSchema,
-  CreateLogDto,
   GetLogsQueryDto,
   LogParamsDto,
 } from "./log.schema";
@@ -18,7 +16,7 @@ import {
 export async function logRoutes(app: FastifyInstance) {
   const router = app.withTypeProvider<ZodTypeProvider>();
 
-  // Ingest Log via API Key (POST /logs)
+  // ingets logs via api key route controller
   router.post<{
     Body: any;
   }>(

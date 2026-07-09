@@ -21,14 +21,12 @@ export const projectApiKeyParamsSchema = z.object({
     projectId: z.string().uuid("Invalid Project ID format (UUID expected)"),
 });
 
-export type CreateApiKeyDto = z.infer<typeof createApiKeySchema>;
-export type ApiKeyParamsDto = z.infer<typeof apiKeyParamsSchema>;
-export type ProjectApiKeyParamsDto = z.infer<
-    typeof projectApiKeyParamsSchema
->;
-
 export const updateApiKeyStatusSchema = z.object({
     isActive: z.boolean(),
 });
+
+export type CreateApiKeyDto = z.infer<typeof createApiKeySchema>;
+export type ApiKeyParamsDto = z.infer<typeof apiKeyParamsSchema>;
+export type ProjectApiKeyParamsDto = z.infer<typeof projectApiKeyParamsSchema>;
 
 export type UpdateApiKeyStatusDto = z.infer<typeof updateApiKeyStatusSchema>;

@@ -1,9 +1,7 @@
 ALTER TABLE users
-ADD COLUMN slack_webhook_url TEXT,
 ADD COLUMN discord_webhook_url TEXT,
 ADD COLUMN email_alerts BOOLEAN DEFAULT TRUE,
 ADD COLUMN email_frequency VARCHAR(50) DEFAULT 'daily',
 ADD COLUMN min_severity VARCHAR(50) DEFAULT 'error',
-ADD COLUMN slack_alerts BOOLEAN DEFAULT FALSE,
 ADD COLUMN discord_alerts BOOLEAN DEFAULT FALSE,
 ADD COLUMN retention_days INTEGER DEFAULT 30;

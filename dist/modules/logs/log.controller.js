@@ -74,6 +74,7 @@ function mapSdkEventToLogData(event, defaultProjectId, defaultEnv) {
     };
 }
 class LogController {
+    //create log controller
     async createLog(request, reply) {
         if (!request.apiKey) {
             throw new unauthorized_error_1.UnauthorizedError("Authentication via API Key is required");
@@ -109,6 +110,7 @@ class LogController {
             data: logs.length === 1 ? logs[0] : logs,
         });
     }
+    //get logs controller
     async getLogs(request, reply) {
         if (!request.user || !request.user.sub) {
             throw new unauthorized_error_1.UnauthorizedError("Authentication required");
@@ -124,6 +126,7 @@ class LogController {
             },
         });
     }
+    //get specific log controller
     async getLog(request, reply) {
         if (!request.user || !request.user.sub) {
             throw new unauthorized_error_1.UnauthorizedError("Authentication required");
@@ -135,6 +138,7 @@ class LogController {
             data: log,
         });
     }
+    //delete specific log controller
     async deleteLog(request, reply) {
         if (!request.user || !request.user.sub) {
             throw new unauthorized_error_1.UnauthorizedError("Authentication required");
@@ -146,7 +150,7 @@ class LogController {
             message: "Log deleted successfully",
         });
     }
-    // Dashboard handlers
+    // Dashboard overview controller
     async getDashboardOverview(request, reply) {
         if (!request.user || !request.user.sub) {
             throw new unauthorized_error_1.UnauthorizedError("Authentication required");
@@ -157,6 +161,7 @@ class LogController {
             data,
         });
     }
+    //dashboard timeline controller
     async getDashboardTimeline(request, reply) {
         if (!request.user || !request.user.sub) {
             throw new unauthorized_error_1.UnauthorizedError("Authentication required");
@@ -167,6 +172,7 @@ class LogController {
             data,
         });
     }
+    //dashboard log levels controller
     async getDashboardLogLevels(request, reply) {
         if (!request.user || !request.user.sub) {
             throw new unauthorized_error_1.UnauthorizedError("Authentication required");
@@ -177,6 +183,7 @@ class LogController {
             data,
         });
     }
+    //dashboard services controller
     async getDashboardServices(request, reply) {
         if (!request.user || !request.user.sub) {
             throw new unauthorized_error_1.UnauthorizedError("Authentication required");
@@ -187,6 +194,7 @@ class LogController {
             data,
         });
     }
+    //dashboard recent errors
     async getDashboardRecentErrors(request, reply) {
         if (!request.user || !request.user.sub) {
             throw new unauthorized_error_1.UnauthorizedError("Authentication required");
@@ -197,6 +205,7 @@ class LogController {
             data,
         });
     }
+    //get onboarding logs TODO: need to improve
     async getDashboardOnboarding(request, reply) {
         if (!request.user || !request.user.sub) {
             throw new unauthorized_error_1.UnauthorizedError("Authentication required");
