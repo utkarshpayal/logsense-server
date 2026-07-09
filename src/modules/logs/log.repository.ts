@@ -328,7 +328,7 @@ class LogRepository {
     return result.rows;
   }
 
-  
+
   async getLogLevelCounts(projectIds: string[]): Promise<LogLevelCountItem[]> {
     const result = await db.query<{ level: string; count: number }>(
       `
@@ -374,7 +374,17 @@ class LogRepository {
   async getRecentErrors(projectIds: string[], limit: number): Promise<Log[]> {
     const result = await db.query<Log>(
       `
-      SELECT *
+      SELECT  id,
+      project_id,
+      level,
+      message,
+      service,
+      environment,
+      trace_id,
+      request_id,
+      hostname,
+      created_at,
+      metadata
       FROM logs
       WHERE project_id = ANY($1) AND level = 'error'
       ORDER BY created_at DESC
@@ -390,7 +400,7 @@ class LogRepository {
   async getOnboardingLogs(projectIds: string[]): Promise<Log[]> {
     const result = await db.query<Log>(
       `
-      SELECT *
+      SELECT id, metadata, created_at
       FROM logs
       WHERE project_id = ANY($1)
         AND (metadata->'onboarding' IS NOT NULL OR metadata->>'category' = 'onboarding' OR level = 'onboarding')

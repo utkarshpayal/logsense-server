@@ -231,7 +231,17 @@ class LogRepository {
     }
     async getRecentErrors(projectIds, limit) {
         const result = await db_1.db.query(`
-      SELECT *
+      SELECT  id,
+      project_id,
+      level,
+      message,
+      service,
+      environment,
+      trace_id,
+      request_id,
+      hostname,
+      created_at,
+      metadata
       FROM logs
       WHERE project_id = ANY($1) AND level = 'error'
       ORDER BY created_at DESC
@@ -242,7 +252,7 @@ class LogRepository {
     //TODO: need to improve onboarding logic
     async getOnboardingLogs(projectIds) {
         const result = await db_1.db.query(`
-      SELECT *
+      SELECT id, metadata, location, created_at, updated_at
       FROM logs
       WHERE project_id = ANY($1)
         AND (metadata->'onboarding' IS NOT NULL OR metadata->>'category' = 'onboarding' OR level = 'onboarding')
