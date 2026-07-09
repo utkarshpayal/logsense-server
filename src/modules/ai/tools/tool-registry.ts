@@ -7,6 +7,7 @@ import { TraceTool } from "./implementations/trace.tool";
 import { IssueTool } from "./implementations/issue.tool";
 import { GeneralKnowledgeTool } from "./implementations/general-knowledge.tool";
 import { DocumentationTool } from "./implementations/documentation.tool";
+import { SemanticSearchTool } from "./implementations/semantic-search.tool";
 
 export class ToolRegistry {
   private tools: Map<string, AgentTool> = new Map();
@@ -40,6 +41,7 @@ export class ToolRegistry {
     this.register(new IssueTool());
     this.register(new GeneralKnowledgeTool());
     this.register(new DocumentationTool());
+    this.register(new SemanticSearchTool());
   }
 }
 

@@ -55,4 +55,13 @@ export async function projectRoutes(app: FastifyInstance) {
     },
     preHandler: [authenticate],
   }, projectController.deleteProject);
+
+  typedApp.post<{
+    Params: ProjectParamsDto;
+  }>("/:id/daily-report", {
+    schema: {
+      params: projectParamsSchema,
+    },
+    preHandler: [authenticate],
+  }, projectController.triggerDailyReport);
 }

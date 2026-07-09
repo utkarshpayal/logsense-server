@@ -34,4 +34,10 @@ async function projectRoutes(app) {
         },
         preHandler: [auth_middleware_1.authenticate],
     }, project_controller_1.projectController.deleteProject);
+    typedApp.post("/:id/daily-report", {
+        schema: {
+            params: project_schema_1.projectParamsSchema,
+        },
+        preHandler: [auth_middleware_1.authenticate],
+    }, project_controller_1.projectController.triggerDailyReport);
 }

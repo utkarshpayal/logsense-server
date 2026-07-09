@@ -77,4 +77,18 @@ export async function dashboardRoutes(app: FastifyInstance) {
     },
     logController.getDashboardRecentErrors
   );
+
+  // Onboarding Logs list (GET /dashboard/onboarding)
+  router.get<{
+    Querystring: DashboardQueryDto;
+  }>(
+    "/onboarding",
+    {
+      preHandler: [authenticate],
+      schema: {
+        querystring: dashboardQuerySchema,
+      },
+    },
+    logController.getDashboardOnboarding
+  );
 }

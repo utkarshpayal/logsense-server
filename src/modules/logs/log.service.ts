@@ -169,6 +169,16 @@ class LogService {
 
     return logRepository.getRecentErrors(projectIds, 10);
   }
+
+  async getDashboardOnboarding(userId: string, projectIdFilter?: string) {
+    const projectIds = await this.getScopedProjectIds(userId, projectIdFilter);
+
+    if (projectIds.length === 0) {
+      return [];
+    }
+
+    return logRepository.getOnboardingLogs(projectIds);
+  }
 }
 
 export const logService = new LogService();

@@ -13,6 +13,20 @@ export const createProjectSchema = z.object({
     .trim()
     .max(500, "Description cannot exceed 500 characters")
     .optional(),
+
+  discord_webhook_url: z
+    .string()
+    .trim()
+    .url("Invalid Discord Webhook URL")
+    .optional()
+    .nullable(),
+
+  slack_webhook_url: z
+    .string()
+    .trim()
+    .url("Invalid Slack Webhook URL")
+    .optional()
+    .nullable(),
 });
 
 export const updateProjectSchema = z.object({
@@ -28,6 +42,20 @@ export const updateProjectSchema = z.object({
     .trim()
     .max(500, "Description cannot exceed 500 characters")
     .optional(),
+
+  discord_webhook_url: z
+    .string()
+    .trim()
+    .url("Invalid Discord Webhook URL")
+    .optional()
+    .nullable(),
+
+  slack_webhook_url: z
+    .string()
+    .trim()
+    .url("Invalid Slack Webhook URL")
+    .optional()
+    .nullable(),
 });
 
 export const projectParamsSchema = z.object({

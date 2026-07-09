@@ -27,4 +27,8 @@ export async function authRoutes(app: FastifyInstance) {
   app.get("/me", {
     preHandler: [authenticate]
   }, authController.me);
+
+  app.put("/settings", {
+    preHandler: [authenticate]
+  }, authController.updateSettings);
 }

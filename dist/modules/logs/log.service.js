@@ -124,5 +124,12 @@ class LogService {
         }
         return log_repository_1.logRepository.getRecentErrors(projectIds, 10);
     }
+    async getDashboardOnboarding(userId, projectIdFilter) {
+        const projectIds = await this.getScopedProjectIds(userId, projectIdFilter);
+        if (projectIds.length === 0) {
+            return [];
+        }
+        return log_repository_1.logRepository.getOnboardingLogs(projectIds);
+    }
 }
 exports.logService = new LogService();

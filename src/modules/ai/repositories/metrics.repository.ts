@@ -16,9 +16,9 @@ export class MetricsRepository {
 
   async getSlowServices(projectId: string) {
     const query = `
-      SELECT service, AVG((metadata->>'latency_ms')::float) as avg_latency
+      SELECT service, AVG(COALESCE((metadata->>'duration')::float, (metadata->>'latency_ms')::float)) as avg_latency
       FROM logs
-      WHERE project_id = $1 AND (metadata->>'latency_ms') IS NOT NULL
+      WHERE project_id = $1 AND (metadata->>'duration' IS NOT NULL OR metadata->>'latency_ms' IS NOT NULL)
       GROUP BY service
       ORDER BY avg_latency DESC
       LIMIT 10

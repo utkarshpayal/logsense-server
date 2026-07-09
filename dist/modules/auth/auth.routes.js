@@ -24,4 +24,7 @@ async function authRoutes(app) {
     app.get("/me", {
         preHandler: [auth_middleware_1.authenticate]
     }, auth_controller_1.authController.me);
+    app.put("/settings", {
+        preHandler: [auth_middleware_1.authenticate]
+    }, auth_controller_1.authController.updateSettings);
 }

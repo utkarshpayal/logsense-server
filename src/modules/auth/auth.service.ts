@@ -42,6 +42,23 @@ class AuthService {
     }
     return user;
   }
+
+  async updateSettings(userId: string, data: any) {
+    const updateData: any = {};
+    if (data.name !== undefined) updateData.name = data.name;
+    if (data.email !== undefined) updateData.email = data.email;
+    if (data.slack_webhook_url !== undefined) updateData.slackWebhookUrl = data.slack_webhook_url;
+    if (data.discord_webhook_url !== undefined) updateData.discordWebhookUrl = data.discord_webhook_url;
+    if (data.email_alerts !== undefined) updateData.emailAlerts = data.email_alerts;
+    if (data.email_frequency !== undefined) updateData.emailFrequency = data.email_frequency;
+    if (data.min_severity !== undefined) updateData.minSeverity = data.min_severity;
+    if (data.slack_alerts !== undefined) updateData.slackAlerts = data.slack_alerts;
+    if (data.discord_alerts !== undefined) updateData.discordAlerts = data.discord_alerts;
+    if (data.retention_days !== undefined) updateData.retentionDays = data.retention_days;
+
+    const user = await authRepository.update(userId, updateData);
+    return user;
+  }
 }
 
 

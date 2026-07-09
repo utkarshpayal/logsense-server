@@ -58,6 +58,8 @@ function mapSdkEventToLogData(event, defaultProjectId, defaultEnv) {
         metadata.exception = event.exception;
     if (event.runtimeMetrics)
         metadata.runtimeMetrics = event.runtimeMetrics;
+    if (event.onboarding)
+        metadata.onboarding = event.onboarding;
     return {
         projectId,
         level,
@@ -190,6 +192,16 @@ class LogController {
             throw new unauthorized_error_1.UnauthorizedError("Authentication required");
         }
         const data = await log_service_1.logService.getDashboardRecentErrors(request.user.sub, request.query.projectId);
+        return reply.send({
+            success: true,
+            data,
+        });
+    }
+    async getDashboardOnboarding(request, reply) {
+        if (!request.user || !request.user.sub) {
+            throw new unauthorized_error_1.UnauthorizedError("Authentication required");
+        }
+        const data = await log_service_1.logService.getDashboardOnboarding(request.user.sub, request.query.projectId);
         return reply.send({
             success: true,
             data,

@@ -52,5 +52,27 @@ class AuthController {
             data: user,
         });
     }
+    async updateSettings(request, reply) {
+        if (!request.user || !request.user.sub) {
+            return reply.code(401).send({
+                success: false,
+                message: "Authentication required",
+            });
+        }
+        try {
+            const user = await auth_service_1.authService.updateSettings(request.user.sub, request.body);
+            return reply.code(200).send({
+                success: true,
+                message: "Settings updated successfully",
+                data: user,
+            });
+        }
+        catch (error) {
+            return reply.code(500).send({
+                success: false,
+                message: error.message || "Failed to update settings",
+            });
+        }
+    }
 }
 exports.authController = new AuthController();

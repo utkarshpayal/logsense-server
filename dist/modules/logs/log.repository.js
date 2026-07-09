@@ -2,8 +2,11 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.logRepository = void 0;
 const db_1 = require("../../config/db");
+const gemini_client_1 = require("../ai/gemini.client");
 class LogRepository {
     async create(data) {
+        const textToEmbed = `${data.level} ${data.service || ""} ${data.message} ${data.metadata ? JSON.stringify(data.metadata) : ""}`;
+        const embedding = await gemini_client_1.geminiClient.generateEmbedding(textToEmbed);
         const result = await db_1.db.query(`
       INSERT INTO logs
       (
@@ -17,11 +20,12 @@ class LogRepository {
         trace_id,
         request_id,
         hostname,
-        created_at
+        created_at,
+        embedding
       )
       VALUES
       (
-        $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11
+        $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12
       )
       RETURNING *;
       `, [
@@ -36,18 +40,26 @@ class LogRepository {
             data.requestId || null,
             data.hostname || null,
             data.createdAt || new Date(),
+            JSON.stringify(embedding)
         ]);
         return result.rows[0];
     }
     async createMany(dataList) {
         if (dataList.length === 0)
             return [];
+        // Generate embeddings for all logs concurrently
+        const embeddings = await Promise.all(dataList.map((data) => {
+            const textToEmbed = `${data.level} ${data.service || ""} ${data.message} ${data.metadata ? JSON.stringify(data.metadata) : ""}`;
+            return gemini_client_1.geminiClient.generateEmbedding(textToEmbed);
+        }));
         const valueRows = [];
         const values = [];
         let paramIndex = 1;
-        for (const data of dataList) {
-            valueRows.push(`($${paramIndex++}, $${paramIndex++}, $${paramIndex++}, $${paramIndex++}, $${paramIndex++}, $${paramIndex++}, $${paramIndex++}, $${paramIndex++}, $${paramIndex++}, $${paramIndex++}, $${paramIndex++})`);
-            values.push(data.projectId, data.apiKeyId, data.level, data.message, data.service || null, data.environment || null, data.metadata ? JSON.stringify(data.metadata) : null, data.traceId || null, data.requestId || null, data.hostname || null, data.createdAt || new Date());
+        for (let i = 0; i < dataList.length; i++) {
+            const data = dataList[i];
+            const embedding = embeddings[i];
+            valueRows.push(`($${paramIndex++}, $${paramIndex++}, $${paramIndex++}, $${paramIndex++}, $${paramIndex++}, $${paramIndex++}, $${paramIndex++}, $${paramIndex++}, $${paramIndex++}, $${paramIndex++}, $${paramIndex++}, $${paramIndex++})`);
+            values.push(data?.projectId, data?.apiKeyId, data?.level, data?.message, data?.service || null, data?.environment || null, data?.metadata ? JSON.stringify(data.metadata) : null, data?.traceId || null, data?.requestId || null, data?.hostname || null, data?.createdAt || new Date(), JSON.stringify(embedding));
         }
         const query = `
       INSERT INTO logs
@@ -62,7 +74,8 @@ class LogRepository {
         trace_id,
         request_id,
         hostname,
-        created_at
+        created_at,
+        embedding
       )
       VALUES
       ${valueRows.join(", ")}
@@ -220,6 +233,16 @@ class LogRepository {
       ORDER BY created_at DESC
       LIMIT $2;
       `, [projectIds, limit]);
+        return result.rows;
+    }
+    async getOnboardingLogs(projectIds) {
+        const result = await db_1.db.query(`
+      SELECT *
+      FROM logs
+      WHERE project_id = ANY($1)
+        AND (metadata->'onboarding' IS NOT NULL OR metadata->>'category' = 'onboarding' OR level = 'onboarding')
+      ORDER BY created_at DESC;
+      `, [projectIds]);
         return result.rows;
     }
 }

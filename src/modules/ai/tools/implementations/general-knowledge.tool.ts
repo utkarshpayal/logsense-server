@@ -1,28 +1,34 @@
 import { AgentTool, ToolResult } from "../interfaces";
 import { ExtractedEntities, Intent } from "../../classifier/intent.types";
-import { groqClient } from "../../groq.client";
+import { ollamaClient } from "../../ollama.client";
 
 export class GeneralKnowledgeTool implements AgentTool {
   name = "GeneralKnowledgeTool";
-  description = "Answers general knowledge and conversational questions using an LLM.";
+  description = "Answers general knowledge and conversational questions using the local Ollama LLM.";
   intents: Intent[] = ["GENERAL_KNOWLEDGE"];
 
-  async execute(projectId: string, entities: ExtractedEntities, originalPrompt?: string): Promise<ToolResult> {
+  async execute(
+    projectId: string,
+    entities: ExtractedEntities,
+    originalPrompt?: string
+  ): Promise<ToolResult> {
     try {
       if (!originalPrompt) {
         throw new Error("Original prompt is required for general knowledge.");
       }
 
-      const prompt = `You are LogSense AI, a helpful assistant. Please answer the user's question directly.
-      Question: ${originalPrompt}`;
-      
-      const { text } = await groqClient.generate(prompt);
-      
+      const prompt = `You are LogSense AI, a helpful observability platform assistant.
+Answer the user's question directly and concisely.
+
+Question: ${originalPrompt}`;
+
+      const { text } = await ollamaClient.generate(prompt);
+
       return {
         toolName: this.name,
         success: true,
         data: { answer: text },
-        explanation: "Answered using general knowledge.",
+        explanation: "Answered using local Ollama LLM.",
       };
     } catch (e: any) {
       return {

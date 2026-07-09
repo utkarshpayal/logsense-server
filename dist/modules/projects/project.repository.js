@@ -9,28 +9,63 @@ class ProjectRepository {
         name,
         slug,
         description,
-        owner_id
+        owner_id,
+        discord_webhook_url,
+        slack_webhook_url
       )
-      VALUES ($1, $2, $3, $4)
+      VALUES ($1, $2, $3, $4, $5, $6)
       RETURNING
         id,
         owner_id,
         name,
         slug,
         description,
+        discord_webhook_url,
+        slack_webhook_url,
         is_active,
         created_at,
         updated_at;
-      `, [data.name, data.slug, data.description || null, data.ownerId]);
+      `, [
+            data.name,
+            data.slug,
+            data.description || null,
+            data.ownerId,
+            data.discordWebhookUrl || null,
+            data.slackWebhookUrl || null,
+        ]);
         return result.rows[0];
     }
     async update(id, data) {
-        const result = await db_1.db.query(`
+        // Build dynamic UPDATE query to handle NULL values correctly (e.g. clearing a webhook)
+        const updates = [];
+        const values = [id];
+        let paramCounter = 2;
+        if (data.name !== undefined) {
+            updates.push(`name = $${paramCounter++}`);
+            values.push(data.name);
+        }
+        if (data.description !== undefined) {
+            updates.push(`description = $${paramCounter++}`);
+            values.push(data.description);
+        }
+        if (data.discordWebhookUrl !== undefined) {
+            updates.push(`discord_webhook_url = $${paramCounter++}`);
+            values.push(data.discordWebhookUrl);
+        }
+        if (data.slackWebhookUrl !== undefined) {
+            updates.push(`slack_webhook_url = $${paramCounter++}`);
+            values.push(data.slackWebhookUrl);
+        }
+        if (updates.length === 0) {
+            const current = await this.findById(id);
+            if (!current)
+                throw new Error("Project not found");
+            return current;
+        }
+        updates.push("updated_at = NOW()");
+        const query = `
       UPDATE projects
-      SET
-        name = COALESCE($2, name),
-        description = COALESCE($3, description),
-        updated_at = NOW()
+      SET ${updates.join(", ")}
       WHERE id = $1 AND is_active = TRUE
       RETURNING
         id,
@@ -38,10 +73,13 @@ class ProjectRepository {
         name,
         slug,
         description,
+        discord_webhook_url,
+        slack_webhook_url,
         is_active,
         created_at,
         updated_at;
-      `, [id, data.name !== undefined ? data.name : null, data.description !== undefined ? data.description : null]);
+    `;
+        const result = await db_1.db.query(query, values);
         return result.rows[0];
     }
     async findBySlug(slug) {
@@ -52,6 +90,8 @@ class ProjectRepository {
         name,
         slug,
         description,
+        discord_webhook_url,
+        slack_webhook_url,
         is_active,
         created_at,
         updated_at
@@ -72,6 +112,8 @@ class ProjectRepository {
         name,
         slug,
         description,
+        discord_webhook_url,
+        slack_webhook_url,
         is_active,
         created_at,
         updated_at
@@ -89,6 +131,8 @@ class ProjectRepository {
         name,
         slug,
         description,
+        discord_webhook_url,
+        slack_webhook_url,
         is_active,
         created_at,
         updated_at
@@ -109,6 +153,24 @@ class ProjectRepository {
         updated_at = NOW()
       WHERE id = $1;
       `, [id]);
+    }
+    async findAllActiveProjects() {
+        const result = await db_1.db.query(`
+      SELECT
+        id,
+        owner_id,
+        name,
+        slug,
+        description,
+        discord_webhook_url,
+        slack_webhook_url,
+        is_active,
+        created_at,
+        updated_at
+      FROM projects
+      WHERE is_active = TRUE;
+      `);
+        return result.rows;
     }
 }
 exports.projectRepository = new ProjectRepository();

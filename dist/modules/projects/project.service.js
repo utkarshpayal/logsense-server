@@ -16,6 +16,8 @@ class ProjectService {
             name: data.name,
             slug,
             description: data.description,
+            discordWebhookUrl: data.discord_webhook_url || null,
+            slackWebhookUrl: data.slack_webhook_url || null,
         });
         return project;
     }
@@ -34,7 +36,16 @@ class ProjectService {
         if (!project) {
             throw new not_found_error_1.NotFoundError("Project not found");
         }
-        return project_repository_1.projectRepository.update(id, data);
+        const updateData = {};
+        if (data.name !== undefined)
+            updateData.name = data.name;
+        if (data.description !== undefined)
+            updateData.description = data.description;
+        if (data.discord_webhook_url !== undefined)
+            updateData.discordWebhookUrl = data.discord_webhook_url;
+        if (data.slack_webhook_url !== undefined)
+            updateData.slackWebhookUrl = data.slack_webhook_url;
+        return project_repository_1.projectRepository.update(id, updateData);
     }
     async deleteProject(id) {
         const project = await project_repository_1.projectRepository.findById(id);

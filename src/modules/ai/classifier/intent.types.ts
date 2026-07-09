@@ -10,6 +10,7 @@ export type Intent =
   | "API_KEY"
   | "DOCUMENTATION"
   | "GENERAL_KNOWLEDGE"
+  | "SEMANTIC_SEARCH"
   | "UNKNOWN";
 
 export interface ExtractedEntities {

@@ -7,46 +7,54 @@ const PLANNER_PROMPT = `You are the AI Planner for LogSense, an observability pl
 Your job is to break down the user's question into one or more capability intents, and extract relevant entities.
 
 AVAILABLE INTENTS:
-- BUSINESS: For project info, API keys.
-- LOGS: For searching logs, viewing latest logs or errors.
-- METRICS: For error rates, latency, request counts, slow services.
+- BUSINESS: For platform-level queries about users, projects, api_keys.
+- LOGS: For viewing, counting, or searching logs (e.g. login events, errors, signups, transactions).
+- METRICS: For performance metrics, error rates, latency, request counts.
 - TRACE: For looking up a specific trace ID.
-- ISSUE: For seeing top/frequent issues.
-- GENERAL_KNOWLEDGE: For generic programming/tech questions, conversational pleasantries.
-- DOCUMENTATION: For questions about how to use LogSense or its SDK.
-- UNKNOWN: Cannot determine intent.
+- ISSUE: For seeing frequent or top errors/issues.
+- GENERAL_KNOWLEDGE: For general conversation, greeting, or generic logs questions (e.g. "what is a log").
+- DOCUMENTATION: For SDK setup or how to use LogSense.
+- UNKNOWN: Default fallback if query is unclear.
 
 RULES:
-1. If the question requires multiple types of data, return multiple intents.
-   Example: "Why are payments failing?" -> ["LOGS", "METRICS", "ISSUE"]
-2. If it's a general question like "What is Redis?", return ["GENERAL_KNOWLEDGE"].
-3. If it asks about SDK setup, return ["DOCUMENTATION"].
-4. Extract entities like service names, trace IDs, search terms, and time ranges.
+1. If the question is about specific events, occurrences, counts, or lists (e.g. "how many users logged in", "show payment logs", "any errors today"), you MUST use the "LOGS" intent.
+2. If it's a general question about how to set up the SDK, return ["DOCUMENTATION"].
+3. Extract entities like service names, trace IDs, search terms (e.g. "login", "signup", "payment"), and time ranges (e.g. "today", "yesterday", "24h", "1h").
+4. Always extract the search term if the query mentions specific actions or keywords. E.g. "who loggedin today" -> searchTerm is "loggedin" or "login".
 
 Return ONLY valid JSON in this exact format:
 {
-  "intents": ["INTENT_1", "INTENT_2"],
+  "intents": ["LOGS"],
   "confidence": 0.95,
   "extractedEntities": {
-    "service": "payment",
-    "searchTerm": "failing"
+    "searchTerm": "loggedin",
+    "timeRange": "today"
   }
 }
-
 `;
 
 export class AiPlanner {
   async plan(projectId: string, prompt: string): Promise<ClassificationResult> {
     try {
       const history = conversationMemory.formatHistoryForPrompt(projectId);
-      
+      const now = new Date();
+      const currentFullTime = `${now.toUTCString()} (Local: ${now.toLocaleString()})`;
+      const todayDate = now.toISOString().split('T')[0];
+
       const fullPrompt = `${PLANNER_PROMPT}
+Current Time Context:
+- Current Time: ${currentFullTime}
+- Today's Date: ${todayDate}
+
 Previous Conversation Context:
 ${history}
 
 User question: "${prompt}"`;
 
-      const { text } = await groqClient.generate(fullPrompt, true);
+      const { text } = await groqClient.generate(fullPrompt, true, {
+        temperature: 0,
+        num_predict: 256,
+      });
       const parsed = groqClient.parseJson(text);
 
       const rawIntents = Array.isArray(parsed?.intents) ? parsed.intents : [parsed?.intent || "UNKNOWN"];

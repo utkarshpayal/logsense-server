@@ -2,6 +2,7 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.projectController = void 0;
 const project_service_1 = require("./project.service");
+const logs_scheduler_1 = require("../logs/logs.scheduler");
 class ProjectController {
     async createProject(request, reply) {
         try {
@@ -99,6 +100,31 @@ class ProjectController {
                 return reply.notFound("Project not found");
             }
             return reply.internalServerError(error.message || "Failed to delete project");
+        }
+    }
+    async triggerDailyReport(request, reply) {
+        try {
+            if (!request.user || !request.user.sub) {
+                return reply.unauthorized("Authentication required");
+            }
+            const project = await project_service_1.projectService.getProject(request.params.id);
+            if (project.owner_id !== request.user.sub) {
+                return reply.forbidden("You do not own this project");
+            }
+            const summary = await logs_scheduler_1.logsScheduler.generateAndSendDailyReport(request.params.id);
+            return reply.send({
+                success: true,
+                message: "Daily report generated and sent successfully",
+                data: {
+                    summary,
+                },
+            });
+        }
+        catch (error) {
+            if (error.message === "Project not found") {
+                return reply.notFound("Project not found");
+            }
+            return reply.internalServerError(error.message || "Failed to generate report");
         }
     }
 }

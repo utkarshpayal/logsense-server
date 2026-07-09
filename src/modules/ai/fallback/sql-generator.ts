@@ -9,7 +9,7 @@ const SCHEMA_CONTEXT = `
 ### users  (platform-wide)
 id UUID, name VARCHAR, email VARCHAR, is_verified BOOLEAN, created_at TIMESTAMPTZ
 
-### projects  (platform-wide)
+### projects  (platform-wide) its web user so not relevent to any chat questions
 id UUID, owner_id UUID→users.id, name VARCHAR, slug VARCHAR, is_active BOOLEAN, created_at TIMESTAMPTZ
 
 ### api_keys  (platform-wide)
@@ -75,10 +75,16 @@ export class FallbackSqlGenerator {
     try {
       const { text } = await groqClient.generate(
         GENERATION_PROMPT(projectId, prompt),
-        true
+        true,
+        {
+          temperature: 0,
+          num_predict: 384,
+        }
       );
       const parsed = groqClient.parseJson(text);
       sql = (parsed?.sql ?? "").trim();
+      // Strip markdown code blocks if the LLM wrapped the SQL string in them
+      sql = sql.replace(/^```[a-z]*\n?/i, "").replace(/\n?```$/, "").trim();
       explanation = parsed?.explanation ?? "Custom SQL query";
       fallbackKeywords = Array.isArray(parsed?.fallback_keywords)
         ? parsed.fallback_keywords.filter((k: any) => typeof k === "string" && k.length > 1)

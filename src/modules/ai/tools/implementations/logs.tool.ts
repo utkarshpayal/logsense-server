@@ -7,19 +7,35 @@ export class LogsTool implements AgentTool {
   description = "Fetches latest logs or searches for specific logs.";
   intents: Intent[] = ["LOGS"];
 
-  async execute(projectId: string, entities: ExtractedEntities): Promise<ToolResult> {
+  async execute(projectId: string, entities: ExtractedEntities, originalPrompt?: string): Promise<ToolResult> {
     try {
       let data;
-      if (entities.searchTerm) {
-        data = await logsRepository.searchLogs(projectId, entities);
+      const isCountOrAggregateQuery = originalPrompt && (
+        /how\s+many/i.test(originalPrompt) ||
+        /count/i.test(originalPrompt) ||
+        /total/i.test(originalPrompt) ||
+        /number\s+of/i.test(originalPrompt) ||
+        /any\b/i.test(originalPrompt) ||
+        /anyone/i.test(originalPrompt) ||
+        /list\s+all/i.test(originalPrompt) ||
+        /show\s+all/i.test(originalPrompt)
+      );
+
+      const modifiedEntities = { ...entities };
+      if (isCountOrAggregateQuery && (!entities.limit || entities.limit === 50)) {
+        modifiedEntities.limit = 200;
+      }
+
+      if (modifiedEntities.searchTerm) {
+        data = await logsRepository.searchLogs(projectId, modifiedEntities);
       } else {
-        data = await logsRepository.getLatestLogs(projectId, entities);
+        data = await logsRepository.getLatestLogs(projectId, modifiedEntities);
       }
       return {
         toolName: this.name,
         success: true,
         data,
-        explanation: "Retrieved logs from the database.",
+        explanation: `Retrieved ${data.length} logs from the database (limit: ${modifiedEntities.limit}).`,
       };
     } catch (e: any) {
       return {

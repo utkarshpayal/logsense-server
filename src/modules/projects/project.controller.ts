@@ -7,6 +7,7 @@ import {
   UpdateProjectDto,
   ProjectParamsDto,
 } from "./project.schema";
+import { logsScheduler } from "../logs/logs.scheduler";
 
 class ProjectController {
   async createProject(
@@ -155,6 +156,39 @@ class ProjectController {
         return reply.notFound("Project not found");
       }
       return reply.internalServerError(error.message || "Failed to delete project");
+    }
+  }
+
+  async triggerDailyReport(
+    request: TypedRequest<{
+      Params: ProjectParamsDto;
+    }>,
+    reply: any
+  ) {
+    try {
+      if (!request.user || !request.user.sub) {
+        return reply.unauthorized("Authentication required");
+      }
+
+      const project = await projectService.getProject(request.params.id);
+      if (project.owner_id !== request.user.sub) {
+        return reply.forbidden("You do not own this project");
+      }
+
+      const summary = await logsScheduler.generateAndSendDailyReport(request.params.id);
+
+      return reply.send({
+        success: true,
+        message: "Daily report generated and sent successfully",
+        data: {
+          summary,
+        },
+      });
+    } catch (error: any) {
+      if (error.message === "Project not found") {
+        return reply.notFound("Project not found");
+      }
+      return reply.internalServerError(error.message || "Failed to generate report");
     }
   }
 }

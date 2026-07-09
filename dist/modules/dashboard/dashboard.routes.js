@@ -41,4 +41,11 @@ async function dashboardRoutes(app) {
             querystring: log_schema_1.dashboardQuerySchema,
         },
     }, log_controller_1.logController.getDashboardRecentErrors);
+    // Onboarding Logs list (GET /dashboard/onboarding)
+    router.get("/onboarding", {
+        preHandler: [auth_middleware_1.authenticate],
+        schema: {
+            querystring: log_schema_1.dashboardQuerySchema,
+        },
+    }, log_controller_1.logController.getDashboardOnboarding);
 }
