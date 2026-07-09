@@ -252,7 +252,7 @@ class LogRepository {
     //TODO: need to improve onboarding logic
     async getOnboardingLogs(projectIds) {
         const result = await db_1.db.query(`
-      SELECT id, metadata, location, created_at, updated_at
+      SELECT id, metadata, created_at
       FROM logs
       WHERE project_id = ANY($1)
         AND (metadata->'onboarding' IS NOT NULL OR metadata->>'category' = 'onboarding' OR level = 'onboarding')

@@ -62,7 +62,7 @@ export class LogsScheduler {
 
     // 2. Compress/Deduplicate logs for prompt size optimization
     //TODO:  need to improve this
-    const logGroups = new Map<string, { count: number; firstSeen: Date; lastSeen: Date; level: string; service?: string; env?: string }>();
+    const logGroups = new Map<string, { count: number; firstSeen: Date; lastSeen: Date; level: string; message: string; service?: string; env?: string }>();
     for (const log of logs) {
       const key = `${log.level}:${log.message}:${log.service ?? ""}:${log.environment ?? ""}`;
       const existing = logGroups.get(key);
@@ -77,6 +77,7 @@ export class LogsScheduler {
           firstSeen: logDate,
           lastSeen: logDate,
           level: log.level,
+          message: log.message,
           service: log.service,
           env: log.environment,
         });
@@ -84,13 +85,10 @@ export class LogsScheduler {
     }
 
     //TODO:  need to improve this
-    const compressedLogs = Array.from(logGroups.entries()).map(([key, details]) => {
-      const parts = key.split(":");
-      const level = parts[0];
-      const message = parts[1];
+    const compressedLogs = Array.from(logGroups.values()).map((details) => {
       return {
         level: details.level,
-        message: message,
+        message: details.message,
         service: details.service,
         environment: details.env,
         occurrences: details.count,
