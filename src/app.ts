@@ -81,6 +81,11 @@ app.register(jwt, {
   secret: env.JWT_SECRET,
 });
 
+// Health Check Endpoint
+app.get("/health", async (request, reply) => {
+  return reply.code(200).send({ status: "OK", timestamp: new Date() });
+});
+
 //auth routes
 app.register(authRoutes, {
   prefix: '/auth',
